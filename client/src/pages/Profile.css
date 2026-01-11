@@ -1,0 +1,165 @@
+.profile-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.profile-header {
+  margin-bottom: 2rem;
+}
+
+.profile-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--dark-text);
+  margin-bottom: 0.5rem;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border: none;
+  background: none;
+  color: var(--light-text);
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: var(--primary-color);
+}
+
+.tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.profile-content {
+  margin-bottom: 2rem;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--dark-text);
+  margin-bottom: 1.5rem;
+}
+
+/* Info Grid */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.info-item label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--light-text);
+  margin-bottom: 0.5rem;
+}
+
+.info-value {
+  font-size: 1rem;
+  color: var(--dark-text);
+}
+
+/* Password Form */
+.password-form {
+  max-width: 500px;
+}
+
+.form-text {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--light-text);
+  margin-top: 0.25rem;
+}
+
+/* 2FA Setup */
+.twofa-setup,
+.twofa-disable {
+  max-width: 500px;
+}
+
+.qr-setup {
+  margin-top: 1.5rem;
+}
+
+.qr-setup h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.qr-code {
+  background: var(--white);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  display: inline-block;
+  margin: 1rem 0;
+}
+
+.qr-code img {
+  display: block;
+  width: 250px;
+  height: 250px;
+}
+
+.secret-code {
+  display: block;
+  padding: 0.75rem;
+  background-color: var(--light-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.875rem;
+  margin: 0.5rem 0 1.5rem 0;
+  word-break: break-all;
+}
+
+.verify-form,
+.disable-form {
+  margin-top: 1.5rem;
+}
+
+.twofa-disable h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 1.5rem 0 1rem 0;
+}
+
+@media (max-width: 768px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-tabs {
+    flex-direction: column;
+    border-bottom: none;
+  }
+
+  .tab-btn {
+    border-bottom: 1px solid var(--border-color);
+    border-left: 3px solid transparent;
+    margin-bottom: 0;
+  }
+
+  .tab-btn.active {
+    border-bottom-color: var(--border-color);
+    border-left-color: var(--primary-color);
+  }
+}

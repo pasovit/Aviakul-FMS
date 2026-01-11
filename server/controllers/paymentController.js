@@ -1,0 +1,533 @@
+const Payment = require("../models/Payment");
+const Invoice = require("../models/Invoice");
+const Customer = require("../models/Customer");
+const Vendor = require("../models/Vendor");
+const BankAccount = require("../models/BankAccount");
+const { logAction } = require("../middleware/audit");
+const mongoose = require("mongoose");
+
+// Get all payments with filters
+exports.getPayments = async (req, res) => {
+  try {
+    const {
+      paymentType,
+      status,
+      paymentMode,
+      isReconciled,
+      search,
+      page = 1,
+      limit = 50,
+    } = req.query;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+    const userEntity = req.user.entity;
+
+    // Build query
+    let query = {};
+
+    // Apply entity-scoped access
+    if (userRole === "employee" || userRole === "observer") {
+      query.entity = userEntity;
+    } else if (req.query.entity) {
+      query.entity = req.query.entity;
+    }
+
+    if (paymentType) query.paymentType = paymentType;
+    if (status) query.status = status;
+    if (paymentMode) query.paymentMode = paymentMode;
+    if (isReconciled !== undefined)
+      query.isReconciled = isReconciled === "true";
+    if (search) {
+      query.$or = [
+        { paymentNumber: { $regex: search, $options: "i" } },
+        { referenceNumber: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await Payment.countDocuments(query);
+
+    const payments = await Payment.find(query)
+      .populate("entity", "name")
+      .populate("customer", "name customerCode")
+      .populate("vendor", "name vendorCode")
+      .populate("bankAccount", "accountName accountNumber")
+      .populate("createdBy", "name email")
+      .sort({ paymentDate: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    res.json({
+      success: true,
+      count: payments.length,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      data: payments,
+    });
+  } catch (error) {
+    console.error("Error fetching payments:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch payments",
+      error: error.message,
+    });
+  }
+};
+
+// Get single payment by ID
+exports.getPayment = async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.id)
+      .populate("entity", "name")
+      .populate("customer", "name customerCode email phone")
+      .populate("vendor", "name vendorCode email phone")
+      .populate("bankAccount", "accountName accountNumber bankName")
+      .populate("allocations.invoice", "invoiceNumber invoiceDate totalAmount")
+      .populate("createdBy", "name email")
+      .populate("updatedBy", "name email");
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found",
+      });
+    }
+
+    // Check entity access
+    const userRole = req.user.role;
+    const userEntity = req.user.entity?.toString();
+    if (
+      (userRole === "employee" || userRole === "observer") &&
+      payment.entity.toString() !== userEntity
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied to this payment",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: payment,
+    });
+  } catch (error) {
+    console.error("Error fetching payment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment",
+      error: error.message,
+    });
+  }
+};
+
+// Create new payment
+exports.createPayment = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Only admin and accountant can create payments
+    if (userRole === "employee" || userRole === "observer") {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to create payment",
+      });
+    }
+
+    const { paymentType, customer, vendor, entity, bankAccount } = req.body;
+
+    // Validate customer/vendor based on payment type
+    if (paymentType === "received" && !customer) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer is required for received payment",
+      });
+    }
+    if (paymentType === "made" && !vendor) {
+      return res.status(400).json({
+        success: false,
+        message: "Vendor is required for made payment",
+      });
+    }
+
+    // Generate payment number if not provided
+    if (!req.body.paymentNumber) {
+      const paymentDate = req.body.paymentDate
+        ? new Date(req.body.paymentDate)
+        : new Date();
+      req.body.paymentNumber = await Payment.generatePaymentNumber(
+        entity,
+        paymentType,
+        paymentDate
+      );
+    }
+
+    // Create payment
+    const payment = await Payment.create({
+      ...req.body,
+      createdBy: userId,
+    });
+
+    // Update bank account balance if status is cleared
+    if (payment.status === "cleared" && bankAccount) {
+      const amount =
+        paymentType === "received" ? payment.amount : -payment.amount;
+      const account = await BankAccount.findById(bankAccount);
+      if (account) {
+        await account.updateBalance(amount);
+      }
+    }
+
+    await logAction(
+      userId,
+      "CREATE",
+      "Payment",
+      payment._id,
+      null,
+      payment.toObject(),
+      req
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Payment created successfully",
+      data: payment,
+    });
+  } catch (error) {
+    console.error("Error creating payment:", error);
+    res.status(400).json({
+      success: false,
+      message: "Failed to create payment",
+      error: error.message,
+    });
+  }
+};
+
+// Update payment
+exports.updatePayment = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Only admin and accountant can update payments
+    if (userRole === "employee" || userRole === "observer") {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to update payment",
+      });
+    }
+
+    const payment = await Payment.findById(req.params.id);
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found",
+      });
+    }
+
+    // Cannot update cancelled payments
+    if (payment.status === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot update cancelled payment",
+      });
+    }
+
+    const oldData = payment.toObject();
+    const oldStatus = payment.status;
+
+    // Update payment
+    Object.assign(payment, req.body, { updatedBy: userId });
+    await payment.save();
+
+    // Update bank balance if status changed
+    if (oldStatus !== payment.status && payment.bankAccount) {
+      const account = await BankAccount.findById(payment.bankAccount);
+      if (account) {
+        const amount =
+          payment.paymentType === "received" ? payment.amount : -payment.amount;
+
+        // Reverse old status effect
+        if (oldStatus === "cleared") {
+          await account.updateBalance(-amount);
+        }
+
+        // Apply new status effect
+        if (payment.status === "cleared") {
+          await account.updateBalance(amount);
+        }
+      }
+    }
+
+    await logAction(
+      userId,
+      "UPDATE",
+      "Payment",
+      payment._id,
+      oldData,
+      payment.toObject(),
+      req
+    );
+
+    res.json({
+      success: true,
+      message: "Payment updated successfully",
+      data: payment,
+    });
+  } catch (error) {
+    console.error("Error updating payment:", error);
+    res.status(400).json({
+      success: false,
+      message: "Failed to update payment",
+      error: error.message,
+    });
+  }
+};
+
+// Delete payment (cancel)
+exports.deletePayment = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Only admin can delete payments
+    if (userRole !== "admin" && userRole !== "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to delete payment",
+      });
+    }
+
+    const payment = await Payment.findById(req.params.id);
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found",
+      });
+    }
+
+    // Cannot delete if allocated to invoices
+    if (payment.allocations && payment.allocations.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Cannot delete payment with invoice allocations. Remove allocations first.",
+      });
+    }
+
+    const oldData = payment.toObject();
+
+    // Reverse bank balance if cleared
+    if (payment.status === "cleared" && payment.bankAccount) {
+      const account = await BankAccount.findById(payment.bankAccount);
+      if (account) {
+        const amount =
+          payment.paymentType === "received" ? -payment.amount : payment.amount;
+        await account.updateBalance(amount);
+      }
+    }
+
+    payment.status = "cancelled";
+    payment.updatedBy = userId;
+    await payment.save();
+
+    await logAction(
+      userId,
+      "DELETE",
+      "Payment",
+      payment._id,
+      oldData,
+      { status: "cancelled" },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: "Payment cancelled successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting payment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete payment",
+      error: error.message,
+    });
+  }
+};
+
+// Allocate payment to invoice
+exports.allocatePayment = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    if (userRole === "employee" || userRole === "observer") {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to allocate payment",
+      });
+    }
+
+    const { invoiceId, amount } = req.body;
+
+    const payment = await Payment.findById(req.params.id);
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found",
+      });
+    }
+
+    if (payment.status === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot allocate cancelled payment",
+      });
+    }
+
+    await payment.allocateToInvoice(invoiceId, amount);
+
+    await logAction(
+      userId,
+      "UPDATE",
+      "Payment",
+      payment._id,
+      null,
+      { action: "allocate", invoiceId, amount },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: "Payment allocated successfully",
+      data: payment,
+    });
+  } catch (error) {
+    console.error("Error allocating payment:", error);
+    res.status(400).json({
+      success: false,
+      message: "Failed to allocate payment",
+      error: error.message,
+    });
+  }
+};
+
+// Get unallocated payments
+exports.getUnallocatedPayments = async (req, res) => {
+  try {
+    const { paymentType } = req.query;
+    const userRole = req.user.role;
+    const userEntity = req.user.entity;
+
+    let query = {
+      status: { $ne: "cancelled" },
+      $expr: { $gt: ["$unallocatedAmount", 0] },
+    };
+
+    if (userRole === "employee" || userRole === "observer") {
+      query.entity = userEntity;
+    } else if (req.query.entity) {
+      query.entity = req.query.entity;
+    }
+
+    if (paymentType) query.paymentType = paymentType;
+
+    const payments = await Payment.find(query)
+      .populate("customer", "name customerCode")
+      .populate("vendor", "name vendorCode")
+      .select(
+        "paymentNumber paymentDate amount allocatedAmount unallocatedAmount paymentType"
+      )
+      .sort({ paymentDate: -1 });
+
+    res.json({
+      success: true,
+      count: payments.length,
+      data: payments,
+    });
+  } catch (error) {
+    console.error("Error fetching unallocated payments:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch unallocated payments",
+      error: error.message,
+    });
+  }
+};
+
+// Get payment summary
+exports.getPaymentSummary = async (req, res) => {
+  try {
+    const { paymentType, startDate, endDate } = req.query;
+    const userRole = req.user.role;
+    const userEntity = req.user.entity;
+
+    let match = {};
+
+    if (userRole === "employee" || userRole === "observer") {
+      match.entity = userEntity;
+    } else if (req.query.entity) {
+      match.entity = mongoose.Types.ObjectId(req.query.entity);
+    }
+
+    if (paymentType) match.paymentType = paymentType;
+    match.status = { $ne: "cancelled" };
+
+    if (startDate && endDate) {
+      match.paymentDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
+
+    const summary = await Payment.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: "$paymentMode",
+          count: { $sum: 1 },
+          totalAmount: { $sum: "$amount" },
+          totalAllocated: { $sum: "$allocatedAmount" },
+          totalUnallocated: { $sum: "$unallocatedAmount" },
+        },
+      },
+      {
+        $sort: { totalAmount: -1 },
+      },
+    ]);
+
+    const overall = await Payment.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          totalPayments: { $sum: 1 },
+          totalAmount: { $sum: "$amount" },
+          totalAllocated: { $sum: "$allocatedAmount" },
+          totalUnallocated: { $sum: "$unallocatedAmount" },
+        },
+      },
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        byMode: summary,
+        overall: overall[0] || {
+          totalPayments: 0,
+          totalAmount: 0,
+          totalAllocated: 0,
+          totalUnallocated: 0,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching payment summary:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment summary",
+      error: error.message,
+    });
+  }
+};
