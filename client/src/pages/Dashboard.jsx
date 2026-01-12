@@ -2,6 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { dashboardAPI } from "../services/api";
 import { toast } from "react-toastify";
+import { FaIndianRupeeSign } from "react-icons/fa6";
+import { FaLongArrowAltUp,FaLongArrowAltDown ,FaChartBar,FaHandHoldingUsd,FaFileInvoiceDollar  } from "react-icons/fa";
+import { FiAlertTriangle } from "react-icons/fi";
+
+
+
 import "./Dashboard.css";
 
 const Dashboard = () => {
@@ -66,7 +72,7 @@ const Dashboard = () => {
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: "#dbeafe" }}>
-            <span style={{ color: "#1e40af" }}>₹</span>
+            <span style={{ color: "#1e40af" }}><FaIndianRupeeSign /></span>
           </div>
           <div className="stat-content">
             <p className="stat-label">Total Balance</p>
@@ -79,7 +85,7 @@ const Dashboard = () => {
 
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: "#d1fae5" }}>
-            <span style={{ color: "#065f46" }}>↑</span>
+            <span style={{ color: "#065f46" }}><FaLongArrowAltUp /></span>
           </div>
           <div className="stat-content">
             <p className="stat-label">Total Income</p>
@@ -92,7 +98,7 @@ const Dashboard = () => {
 
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: "#fee2e2" }}>
-            <span style={{ color: "#991b1b" }}>↓</span>
+            <span style={{ color: "#991b1b" }}><FaLongArrowAltDown /></span>
           </div>
           <div className="stat-content">
             <p className="stat-label">Total Expenses</p>
@@ -105,7 +111,7 @@ const Dashboard = () => {
 
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: "#fef3c7" }}>
-            <span style={{ color: "#92400e" }}>📊</span>
+            <span style={{ color: "#92400e" }}><FaChartBar/></span>
           </div>
           <div className="stat-content">
             <p className="stat-label">Net Position</p>
@@ -124,7 +130,7 @@ const Dashboard = () => {
         <div className="stats-grid" style={{ marginTop: "24px" }}>
           <div className="stat-card">
             <div className="stat-icon" style={{ backgroundColor: "#dcfce7" }}>
-              <span style={{ color: "#166534" }}>📥</span>
+              <span style={{ color: "#166534" }}><FaHandHoldingUsd /></span>
             </div>
             <div className="stat-content">
               <p className="stat-label">Accounts Receivable</p>
@@ -147,7 +153,7 @@ const Dashboard = () => {
 
           <div className="stat-card">
             <div className="stat-icon" style={{ backgroundColor: "#fee2e2" }}>
-              <span style={{ color: "#991b1b" }}>📤</span>
+              <span style={{ color: "#991b1b" }}><FaFileInvoiceDollar/></span>
             </div>
             <div className="stat-content">
               <p className="stat-label">Accounts Payable</p>
@@ -170,7 +176,7 @@ const Dashboard = () => {
 
           <div className="stat-card">
             <div className="stat-icon" style={{ backgroundColor: "#fef3c7" }}>
-              <span style={{ color: "#92400e" }}>⚠️</span>
+              <span style={{ color: "#92400e" }}><FiAlertTriangle/></span>
             </div>
             <div className="stat-content">
               <p className="stat-label">Total Overdue</p>
@@ -365,7 +371,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="dashboard-content">
+      {/* <div className="dashboard-content">
         <div className="card">
           <h2 className="card-title">
             Phase 0 - Authentication & Foundation ✅
@@ -434,9 +440,9 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
-      <div className="card">
+      {/* <div className="card">
         <h3>Your Account Information</h3>
         <div className="account-info">
           <div className="info-row">
@@ -472,7 +478,7 @@ const Dashboard = () => {
             </span>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

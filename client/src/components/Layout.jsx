@@ -46,8 +46,8 @@ const Layout = ({ children }) => {
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2>Aviakul FMS</h2>
-          <p className="user-info">{user?.fullName || user?.username}</p>
-          <span className="user-role">{user?.role?.replace("_", " ")}</span>
+          {/* <p className="user-info">{user?.fullName || user?.username}</p>
+          <span className="user-role">{user?.role?.replace("_", " ")}</span> */}
         </div>
 
         <nav className="sidebar-nav">
