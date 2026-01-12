@@ -48,6 +48,7 @@
 }
 .login-forgot-password-btn:hover{
   color: red;
+   font-weight: 600;
 }
 
 .btn-block {
