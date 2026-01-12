@@ -15,13 +15,13 @@ dotenv.config();
 // Connect to database
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
+    await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log("✅ MongoDB Connected");
+    console.log("MongoDB Connected");
   } catch (error) {
-    console.error("❌ MongoDB Connection Error:", error.message);
+    console.error("MongoDB Connection Error:", error.message);
     process.exit(1);
   }
 };
@@ -31,7 +31,7 @@ const seedEntities = async () => {
   try {
     // Clear existing entities
     await Entity.deleteMany({});
-    console.log("🗑️  Cleared existing entities");
+    console.log("Cleared existing entities");
 
     const entities = [
       // Companies
@@ -200,11 +200,11 @@ const seedEntities = async () => {
     ];
 
     const createdEntities = await Entity.insertMany(entities);
-    console.log(`✅ Created ${createdEntities.length} entities`);
+    console.log(`Created ${createdEntities.length} entities`);
 
     return createdEntities;
   } catch (error) {
-    console.error("❌ Error seeding entities:", error.message);
+    console.error("Error seeding entities:", error.message);
     throw error;
   }
 };
@@ -216,7 +216,7 @@ const seedSuperAdmin = async (entities) => {
     const existingAdmin = await User.findOne({ username: "superadmin" });
 
     if (existingAdmin) {
-      console.log("⚠️  Super Admin user already exists");
+      console.log("Super Admin user already exists");
       return existingAdmin;
     }
 
@@ -234,17 +234,17 @@ const seedSuperAdmin = async (entities) => {
       twoFactorEnabled: false,
     });
 
-    console.log("✅ Created Super Admin user");
-    console.log("📧 Email: admin@aviakul.com");
-    console.log("👤 Username: superadmin");
-    console.log("🔑 Password: Admin@123456");
+    console.log("Created Super Admin user");
+    console.log("Email: admin@aviakul.com");
+    console.log("Username: superadmin");
+    console.log("Password: Admin@123456");
     console.log(
-      "⚠️  IMPORTANT: Change this password immediately after first login!"
+      "IMPORTANT: Change this password immediately after first login!"
     );
 
     return superAdmin;
   } catch (error) {
-    console.error("❌ Error seeding super admin:", error.message);
+    console.error("Error seeding super admin:", error.message);
     throw error;
   }
 };
@@ -253,7 +253,7 @@ const seedSuperAdmin = async (entities) => {
 const seedBankAccounts = async (entities, admin) => {
   try {
     await BankAccount.deleteMany({});
-    console.log("\n🗑️  Cleared existing bank accounts");
+    console.log("Cleared existing bank accounts");
 
     const accounts = [];
 
@@ -291,7 +291,7 @@ const seedBankAccounts = async (entities, admin) => {
     }
 
     const createdAccounts = await BankAccount.insertMany(accounts);
-    console.log(`✅ Created ${createdAccounts.length} bank accounts`);
+    console.log(`Created ${createdAccounts.length} bank accounts`);
     return createdAccounts;
   } catch (error) {
     console.error("Error seeding bank accounts:", error.message);
@@ -303,7 +303,7 @@ const seedBankAccounts = async (entities, admin) => {
 const seedTransactions = async (entities, bankAccounts, admin) => {
   try {
     await Transaction.deleteMany({});
-    console.log("\n🗑️  Cleared existing transactions");
+    console.log("Cleared existing transactions");
 
     const transactions = [];
     const categories = {
@@ -341,7 +341,7 @@ const seedTransactions = async (entities, bankAccounts, admin) => {
         // Random date between start and end
         const randomDate = new Date(
           startDate.getTime() +
-            Math.random() * (endDate.getTime() - startDate.getTime())
+          Math.random() * (endDate.getTime() - startDate.getTime())
         );
 
         const transaction = {
@@ -409,8 +409,8 @@ const seedTransactions = async (entities, bankAccounts, admin) => {
       await account.save();
     }
 
-    console.log(`✅ Created ${createdTransactions.length} transactions`);
-    console.log(`✅ Updated account balances`);
+    console.log(`Created ${createdTransactions.length} transactions`);
+    console.log(`Updated account balances`);
     return createdTransactions;
   } catch (error) {
     console.error("Error seeding transactions:", error.message);
@@ -422,7 +422,7 @@ const seedTransactions = async (entities, bankAccounts, admin) => {
 const seedVendors = async (entities, admin) => {
   try {
     await Vendor.deleteMany({});
-    console.log("🗑️  Cleared existing vendors");
+    console.log("Cleared existing vendors");
 
     const vendorData = [
       {
@@ -525,10 +525,10 @@ const seedVendors = async (entities, admin) => {
     ];
 
     const vendors = await Vendor.insertMany(vendorData);
-    console.log(`✅ Seeded ${vendors.length} vendors`);
+    console.log(`Seeded ${vendors.length} vendors`);
     return vendors;
   } catch (error) {
-    console.error("❌ Error seeding vendors:", error.message);
+    console.error("Error seeding vendors:", error.message);
     throw error;
   }
 };
@@ -537,7 +537,7 @@ const seedVendors = async (entities, admin) => {
 const seedCustomers = async (entities, admin) => {
   try {
     await Customer.deleteMany({});
-    console.log("🗑️  Cleared existing customers");
+    console.log("Cleared existing customers");
 
     const customerData = [
       {
@@ -672,10 +672,10 @@ const seedCustomers = async (entities, admin) => {
     ];
 
     const customers = await Customer.insertMany(customerData);
-    console.log(`✅ Seeded ${customers.length} customers`);
+    console.log(`Seeded ${customers.length} customers`);
     return customers;
   } catch (error) {
-    console.error("❌ Error seeding customers:", error.message);
+    console.error("Error seeding customers:", error.message);
     throw error;
   }
 };
@@ -684,7 +684,7 @@ const seedCustomers = async (entities, admin) => {
 const seedInvoices = async (entities, vendors, customers, admin) => {
   try {
     await Invoice.deleteMany({});
-    console.log("🗑️  Cleared existing invoices");
+    console.log("Cleared existing invoices");
 
     const invoiceData = [
       // Sales Invoices (AR)
@@ -863,10 +863,10 @@ const seedInvoices = async (entities, vendors, customers, admin) => {
     });
 
     const invoices = await Invoice.insertMany(invoiceData);
-    console.log(`✅ Seeded ${invoices.length} invoices`);
+    console.log(`Seeded ${invoices.length} invoices`);
     return invoices;
   } catch (error) {
-    console.error("❌ Error seeding invoices:", error.message);
+    console.error("Error seeding invoices:", error.message);
     throw error;
   }
 };
@@ -875,7 +875,7 @@ const seedInvoices = async (entities, vendors, customers, admin) => {
 const seedPayments = async (entities, invoices, bankAccounts, admin) => {
   try {
     await Payment.deleteMany({});
-    console.log("🗑️  Cleared existing payments");
+    console.log("Cleared existing payments");
 
     const paymentData = [
       {
@@ -920,10 +920,10 @@ const seedPayments = async (entities, invoices, bankAccounts, admin) => {
     ];
 
     const payments = await Payment.insertMany(paymentData);
-    console.log(`✅ Seeded ${payments.length} payments`);
+    console.log(`Seeded ${payments.length} payments`);
     return payments;
   } catch (error) {
-    console.error("❌ Error seeding payments:", error.message);
+    console.error("Error seeding payments:", error.message);
     throw error;
   }
 };
@@ -931,7 +931,7 @@ const seedPayments = async (entities, invoices, bankAccounts, admin) => {
 // Main seed function
 const seedDatabase = async () => {
   try {
-    console.log("🌱 Starting database seeding...\n");
+    console.log("Starting database seeding...");
 
     // Connect to database
     await connectDB();
@@ -959,21 +959,21 @@ const seedDatabase = async () => {
       admin
     );
 
-    console.log("\n✅ Database seeding completed successfully!");
-    console.log("\n📝 Summary:");
-    console.log(`   - Entities: ${entities.length}`);
-    console.log("   - Super Admin: 1");
-    console.log(`   - Bank Accounts: ${bankAccounts.length}`);
-    console.log(`   - Transactions: ${transactions.length}`);
-    console.log(`   - Vendors: ${vendors.length}`);
-    console.log(`   - Customers: ${customers.length}`);
-    console.log(`   - Invoices: ${invoices.length}`);
-    console.log(`   - Payments: ${payments.length}`);
-    console.log("\n🚀 You can now start the server with: npm run dev");
+    console.log("Database seeding completed successfully!");
+    console.log("Summary:");
+    console.log(`Entities: ${entities.length}`);
+    console.log("Super Admin: 1");
+    console.log(`Bank Accounts: ${bankAccounts.length}`);
+    console.log(`Transactions: ${transactions.length}`);
+    console.log(`Vendors: ${vendors.length}`);
+    console.log(`Customers: ${customers.length}`);
+    console.log(`Invoices: ${invoices.length}`);
+    console.log(`Payments: ${payments.length}`);
+    console.log("You can now start the server with: npm run dev");
 
     process.exit(0);
   } catch (error) {
-    console.error("\n❌ Database seeding failed:", error.message);
+    console.error("Database seeding failed:", error.message);
     process.exit(1);
   }
 };
