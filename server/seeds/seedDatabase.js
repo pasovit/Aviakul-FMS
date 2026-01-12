@@ -1,3 +1,4 @@
+require("dotenv").config();
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const User = require("../models/User");
@@ -9,8 +10,8 @@ const Customer = require("../models/Customer");
 const Invoice = require("../models/Invoice");
 const Payment = require("../models/Payment");
 
-// Load environment variables
-dotenv.config();
+// // Load environment variables
+// dotenv.config();
 
 // Connect to database
 const connectDB = async () => {

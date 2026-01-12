@@ -85,6 +85,9 @@ const Login = () => {
               autoComplete="current-password"
             />
           </div>
+          <div className="login-forgot-password">
+            <button className="login-forgot-password-btn">Forgot Password?</button>
+          </div>
 
           {(show2FA || requires2FA) && (
             <div className="form-group">
@@ -109,7 +112,7 @@ const Login = () => {
 
           <button
             type="submit"
-            className="btn btn-primary btn-block"
+            className="btn-block"
             disabled={loading}
           >
             {loading ? "Signing in..." : "Sign In"}
