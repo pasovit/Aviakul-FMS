@@ -7,7 +7,7 @@ const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
 const xss = require("xss-clean");
 const morgan = require("morgan");
-const dotenv = require("dotenv");
+
 const rateLimit = require("express-rate-limit");
 
 // //Load environment variables
