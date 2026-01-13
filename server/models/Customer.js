@@ -248,7 +248,7 @@ customerSchema.virtual("availableCredit").get(function () {
 // Static method to generate customer code
 customerSchema.statics.generateCustomerCode = async function (entityId) {
   const count = await this.countDocuments({ entity: entityId });
-  return `CUS${String(count + 1).padStart(5, "0")}`;
+  return `CUS-${String(count + 1).padStart(5, "0")}`;
 };
 
 // Static method to update outstanding balance
@@ -261,7 +261,7 @@ customerSchema.statics.updateOutstanding = async function (customerId, amount) {
 };
 
 // Pre-save hook to generate customer code
-customerSchema.pre("save", async function (next) {
+customerSchema.pre("validate", async function (next) {
   if (this.isNew && !this.customerCode) {
     this.customerCode = await this.constructor.generateCustomerCode(
       this.entity

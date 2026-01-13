@@ -37,7 +37,7 @@ const Payments = () => {
 
   const [formData, setFormData] = useState({
     entity: "",
-    paymentType: "payment_received",
+    paymentType: "received",
     paymentDate: new Date().toISOString().split("T")[0],
     amount: "",
     paymentMethod: "bank_transfer",
@@ -85,6 +85,7 @@ const Payments = () => {
         ...filters,
         search: searchTerm,
       });
+      console.log(response.data.data)
       setPayments(response.data.data);
     } catch (error) {
       toast.error("Failed to fetch payments");
@@ -97,6 +98,7 @@ const Payments = () => {
   const fetchEntities = async () => {
     try {
       const response = await entityAPI.getAll();
+      console.log(response.data.data)
       setEntities(response.data.data);
     } catch (error) {
       console.error("Failed to fetch entities:", error);
@@ -115,7 +117,7 @@ const Payments = () => {
   const fetchUnallocatedInvoices = async (entity, paymentType) => {
     try {
       const invoiceType =
-        paymentType === "payment_received"
+        paymentType === "received"
           ? "sales_invoice"
           : "purchase_invoice";
       const response = await invoiceAPI.getAll({
@@ -157,7 +159,7 @@ const Payments = () => {
       setEditingPayment(null);
       setFormData({
         entity: "",
-        paymentType: "payment_received",
+        paymentType: "received",
         paymentDate: new Date().toISOString().split("T")[0],
         amount: "",
         paymentMethod: "bank_transfer",
@@ -607,7 +609,7 @@ const Payments = () => {
                       <option value="">Select Entity</option>
                       {entities.map((entity) => (
                         <option key={entity._id} value={entity._id}>
-                          {entity.entityName}
+                          {entity.name}
                         </option>
                       ))}
                     </select>
@@ -621,8 +623,8 @@ const Payments = () => {
                       onChange={handleChange}
                       required
                     >
-                      <option value="payment_received">Payment Received</option>
-                      <option value="payment_made">Payment Made</option>
+                      <option value="received">Payment Received</option>
+                      <option value="made">Payment Made</option>
                     </select>
                   </div>
                 </div>
