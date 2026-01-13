@@ -94,6 +94,7 @@ const Vendors = () => {
         ...filters,
         search: searchTerm,
       });
+      console.log(response.data.data)
       setVendors(response.data.data);
     } catch (error) {
       toast.error("Failed to fetch vendors");

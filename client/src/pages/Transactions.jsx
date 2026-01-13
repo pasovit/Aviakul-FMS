@@ -11,6 +11,7 @@ import {
 } from "react-icons/fa";
 import { transactionAPI, bankAccountAPI, entityAPI } from "../services/api";
 import "./Transactions.css";
+import { FiEdit } from "react-icons/fi";
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -52,6 +53,7 @@ const Transactions = () => {
     tdsSection: "",
     tdsRate: 0,
     tdsAmount: 0,
+    totalAmount: 10,
     paymentMethod: "neft",
     referenceNumber: "",
     invoiceNumber: "",
@@ -133,6 +135,7 @@ const Transactions = () => {
       tdsSection: "",
       tdsRate: 0,
       tdsAmount: 0,
+      totalAmount: 0,
       paymentMethod: "neft",
       referenceNumber: "",
       invoiceNumber: "",
@@ -142,6 +145,40 @@ const Transactions = () => {
     });
     setEditingTransaction(null);
   };
+
+  // ** ADDED: handle edit action
+const handleEdit = (transaction) => {
+  setEditingTransaction(transaction);
+
+  setFormData({
+    entity: transaction.entity?._id || "",
+    bankAccount: transaction.bankAccount?._id || "",
+    transactionDate: transaction.transactionDate.split("T")[0],
+    type: transaction.type,
+    category: transaction.category,
+    partyName: transaction.partyName || "",
+    partyPAN: transaction.partyPAN || "",
+    partyGSTIN: transaction.partyGSTIN || "",
+    amount: transaction.amount,
+    cgst: transaction.gstDetails?.cgst || 0,
+    sgst: transaction.gstDetails?.sgst || 0,
+    igst: transaction.gstDetails?.igst || 0,
+    tdsSection: transaction.tdsDetails?.section || "",
+    tdsRate: transaction.tdsDetails?.rate || 0,
+    tdsAmount: transaction.tdsDetails?.amount || 0,
+    totalAmount: transaction.totalAmount,
+    paymentMethod: transaction.paymentMethod,
+    referenceNumber: transaction.referenceNumber || "",
+    invoiceNumber: transaction.invoiceNumber || "",
+    invoiceDate: transaction.invoiceDate
+      ? transaction.invoiceDate.split("T")[0]
+      : "",
+    status: transaction.status,
+    notes: transaction.notes || "",
+  });
+
+  setShowModal(true);
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -166,6 +203,7 @@ const Transactions = () => {
         await transactionAPI.update(editingTransaction._id, submitData);
         toast.success("Transaction updated successfully");
       } else {
+        console.log(submitData);
         await transactionAPI.create(submitData);
         toast.success("Transaction created successfully");
       }
@@ -443,6 +481,9 @@ const Transactions = () => {
                   </span>
                 </td>
                 <td className="actions-cell">
+                  <button className="btn-icon"  onClick={() => handleEdit(txn)}>
+                    <FiEdit />
+                  </button>
                   <button
                     className="btn-icon"
                     onClick={() => handleDelete(txn._id)}

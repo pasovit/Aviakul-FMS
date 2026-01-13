@@ -49,6 +49,7 @@ const BankAccounts = () => {
 
       const response = await bankAccountAPI.getAll(params);
       setAccounts(response.data.data);
+      console.log(response.data.data)
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch accounts");
     } finally {
@@ -143,7 +144,8 @@ const BankAccounts = () => {
     }
 
     try {
-      await bankAccountAPI.delete(accountId);
+      const {data} = await bankAccountAPI.delete(accountId);
+      console.log(data)
       toast.success("Account deactivated successfully");
       fetchAccounts();
     } catch (error) {
