@@ -261,13 +261,24 @@ const Invoices = () => {
     e.preventDefault();
 
     try {
+      const payload = { ...formData };
+
+      //remove invalid ObjectIds
+      if (payload.invoiceType === "sales") {
+        delete payload.vendor;
+      }
+      if (payload.invoiceType === "purchase") {
+        delete payload.customer;
+      }
+
       if (editingInvoice) {
-        await invoiceAPI.update(editingInvoice._id, formData);
+        await invoiceAPI.update(editingInvoice._id, payload);
         toast.success("Invoice updated successfully");
       } else {
-        await invoiceAPI.create(formData);
+        await invoiceAPI.create(payload);
         toast.success("Invoice created successfully");
       }
+
       handleCloseModal();
       fetchInvoices();
     } catch (error) {

@@ -213,7 +213,7 @@ exports.updateInvoice = async (req, res) => {
         message: "Invoice not found",
       });
     }
-
+    
     // Cannot update paid or cancelled invoices
     if (invoice.status === "paid" || invoice.status === "cancelled") {
       return res.status(400).json({
@@ -264,7 +264,7 @@ exports.updateInvoice = async (req, res) => {
   }
 };
 
-// Delete invoice (cancel)
+// Delete invoice (cancel) 
 exports.deleteInvoice = async (req, res) => {
   try {
     const userId = req.user._id;
