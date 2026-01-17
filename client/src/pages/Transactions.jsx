@@ -314,16 +314,16 @@ const handleEdit = (transaction) => {
         </div>
         <div className="header-actions">
           <button
-            className="btn btn-secondary"
+            className="transaction-show-filters"
             onClick={() => setShowFilters(!showFilters)}
           >
             <FaFilter /> Filters
           </button>
-          <button className="btn btn-secondary" onClick={handleExport}>
+          <button className="transaction-export" onClick={handleExport}>
             <FaFileExcel /> Export
           </button>
           <button
-            className="btn btn-primary"
+            className="add-transaction"
             onClick={() => setShowModal(true)}
           >
             <FaPlus /> Add Transaction
@@ -695,7 +695,7 @@ const handleEdit = (transaction) => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="transaction-create">
                   {editingTransaction ? "Update" : "Create"}
                 </button>
               </div>

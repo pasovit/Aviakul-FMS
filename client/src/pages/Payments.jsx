@@ -397,7 +397,7 @@ const Payments = () => {
     <div className="payments-page">
       <div className="page-header">
         <h1>Payments</h1>
-        <button className="btn-primary" onClick={() => handleOpenModal()}>
+        <button className="add-payment" onClick={() => handleOpenModal()}>
           <FaPlus /> Add Payment
         </button>
       </div>
@@ -414,7 +414,7 @@ const Payments = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button type="submit" className="btn-primary btn-sm">
+          <button type="submit" className="payments-search">
             Search
           </button>
         </form>
@@ -775,7 +775,7 @@ const Payments = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="payments-create">
                   {editingPayment ? "Update" : "Create"} Payment
                 </button>
               </div>
@@ -951,7 +951,7 @@ const Payments = () => {
                 Cancel
               </button>
               <button
-                className="btn-primary"
+                className="payments-create"
                 onClick={handleSaveAllocation}
                 disabled={allocationData.allocations.length === 0}
               >

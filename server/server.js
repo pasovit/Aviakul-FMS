@@ -1,4 +1,4 @@
-require("dotenv").config(); // MUST be first
+require("dotenv").config();
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -7,13 +7,9 @@ const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
 const xss = require("xss-clean");
 const morgan = require("morgan");
-
 const rateLimit = require("express-rate-limit");
 
-// //Load environment variables
-// dotenv.config();
-
-// Import routes
+// Routes
 const authRoutes = require("./routes/authRoutes");
 const entityRoutes = require("./routes/entityRoutes");
 const auditRoutes = require("./routes/auditRoutes");
@@ -25,72 +21,105 @@ const customerRoutes = require("./routes/customerRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 
-// Import middleware
-const errorHandler = require("./middleware/errorHandler");
+// Utils
 const { logger } = require("./utils/logger");
+const { startCronJobs } = require("./jobs");
 
-// Import jobs
-const { startCronJobs } = require("./jobs/index");
-
-// Initialize Express app
 const app = express();
 
-// Trust proxy (important for getting real IP behind reverse proxy)
+/* ======================================================
+   TRUST PROXY
+====================================================== */
 app.set("trust proxy", 1);
 
-// Security middleware
-app.use(helmet());
-app.use(mongoSanitize()); // Prevent NoSQL injection
-app.use(xss()); // Prevent XSS attacks
+/* ======================================================
+   CORS (VERY IMPORTANT – MUST BE FIRST)
+====================================================== */
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  process.env.APP_URL,
+];
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-  message: "Too many requests from this IP, please try again later.",
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use("/api/", limiter);
-
-// Stricter rate limit for auth routes
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Max 20 requests per IP
-  skipSuccessfulRequests: true,
-  message: "Too many authentication attempts, please try again later.",
-});
-app.use("/api/auth/login", authLimiter);
-app.use("/api/auth/register", authLimiter);
-
-// CORS
 app.use(
   cors({
-    origin: process.env.APP_URL || "http://localhost:3000",
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS not allowed"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Body parser
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// Allow preflight
+app.options("*", cors());
 
-// Logging
+/* ======================================================
+   HANDLE OPTIONS BEFORE RATE LIMIT
+====================================================== */
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+/* ======================================================
+   BODY PARSER
+====================================================== */
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+/* ======================================================
+   SECURITY
+====================================================== */
+app.use(helmet());
+app.use(mongoSanitize());
+app.use(xss());
+
+/* ======================================================
+   LOGGING
+====================================================== */
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// Health check endpoint
+/* ======================================================
+   RATE LIMITING
+====================================================== */
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  skipSuccessfulRequests: true,
+});
+
+app.use("/api", apiLimiter);
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+
+/* ======================================================
+   ROUTES
+====================================================== */
 app.get("/health", (req, res) => {
-  res.status(200).json({
+  res.json({
     success: true,
     message: "Server is running",
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
+    time: new Date(),
   });
 });
 
-// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/entities", entityRoutes);
 app.use("/api/audit", auditRoutes);
@@ -102,7 +131,9 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/payments", paymentRoutes);
 
-// 404 handler
+/* ======================================================
+   404 HANDLER
+====================================================== */
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -110,76 +141,57 @@ app.use((req, res) => {
   });
 });
 
-// Error handler (must be last)
-app.use(errorHandler);
+/* ======================================================
+   ERROR HANDLER
+====================================================== */
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({
+    success: false,
+    message: "Internal Server Error",
+  });
+});
 
-// Database connection
+/* ======================================================
+   DATABASE CONNECTION
+====================================================== */
 const connectDB = async () => {
   try {
-    console.log("MONGO_URI =", process.env.MONGO_URI);
-
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const conn = await mongoose.connect(process.env.MONGO_URI);
     logger.info(`MongoDB Connected: ${conn.connection.host}`);
-    return conn;
-  } catch (error) {
-    logger.error(`MongoDB Connection Error: ${error.message}`);
-    console.log(error
-    )
+  } catch (err) {
+    console.error("MongoDB connection failed:", err.message);
     process.exit(1);
   }
 };
 
-// Start server
+/* ======================================================
+   START SERVER
+====================================================== */
 const PORT = process.env.PORT || 5001;
 
 const startServer = async () => {
-  try {
-    // Connect to database
-    await connectDB();
+  await connectDB();
+  startCronJobs();
 
-    // Start cron jobs
-    startCronJobs();
-
-    // Start Express server
-    app.listen(PORT, () => {
-      logger.info(
-        `Server running in ${process.env.NODE_ENV} mode on port ${PORT}`
-      );
-    });
-  } catch (error) {
-    logger.error(`Failed to start server: ${error.message}`);
-    process.exit(1);
-  }
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
 };
 
-// Handle unhandled promise rejections
-process.on("unhandledRejection", (err) => {
-  logger.error(`Unhandled Rejection: ${err.message}`);
-  // Close server & exit process
-  process.exit(1);
-});
-
-// Handle uncaught exceptions
-process.on("uncaughtException", (err) => {
-  logger.error(`Uncaught Exception: ${err.message}`);
-  process.exit(1);
-});
-
-// Graceful shutdown
-process.on("SIGTERM", () => {
-  logger.info("SIGTERM signal received. Closing server gracefully...");
-  process.exit(0);
-});
-
-process.on("SIGINT", () => {
-  logger.info("SIGINT signal received. Closing server gracefully...");
-  process.exit(0);
-});
-
-// Start the server
 startServer();
+
+/* ======================================================
+   PROCESS SAFETY
+====================================================== */
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled Rejection:", err);
+  process.exit(1);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  process.exit(1);
+});
 
 module.exports = app;

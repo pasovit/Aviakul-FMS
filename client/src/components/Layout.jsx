@@ -51,7 +51,7 @@ const Layout = ({ children }) => {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
+          {navItems.map((item) => ( 
             <Link
               key={item.path}
               to={item.path}
@@ -64,8 +64,8 @@ const Layout = ({ children }) => {
         </nav>
 
         <div className="sidebar-footer">
-          <button onClick={handleLogout} className="nav-item logout-btn">
-            <FiLogOut />
+          <button onClick={handleLogout} className="logout-btn">
+            <FiLogOut size={20} className="logout-icon"/>
             <span>Logout</span>
           </button>
         </div>

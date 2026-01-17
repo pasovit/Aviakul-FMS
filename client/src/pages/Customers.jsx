@@ -256,7 +256,7 @@ const Customers = () => {
     <div className="customers-page">
       <div className="page-header">
         <h1>Customers</h1>
-        <button className="btn-primary" onClick={() => handleOpenModal()}>
+        <button className="add-customer" onClick={() => handleOpenModal()}>
           <FaPlus /> Add Customer
         </button>
       </div>
@@ -273,7 +273,7 @@ const Customers = () => {
               className="search-input"
             />
           </div>
-          <button type="submit" className="btn-secondary">
+          <button type="submit" className="customer-search">
             Search
           </button>
         </form>
@@ -756,7 +756,7 @@ const Customers = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="customer-create">
                   {editingCustomer ? "Update" : "Create"} Customer
                 </button>
               </div>

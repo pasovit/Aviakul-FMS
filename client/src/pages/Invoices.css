@@ -14,7 +14,19 @@
   font-size: 28px;
   color: #2c3e50;
 }
+.add-invoice,.invoice-create,.invoice-search{
+  background: #1c3787;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.add-invoice:hover,.invoice-create:hover,.invoice-search:hover{
+  transform: scale(1.05);
 
+}
 .filters-section {
   background: white;
   padding: 20px;

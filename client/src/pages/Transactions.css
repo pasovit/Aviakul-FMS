@@ -6,6 +6,20 @@
   display: flex;
   gap: 1rem;
 }
+.add-transaction,.transaction-export,.transaction-show-filters,.transaction-create{
+  background: #1c3787;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.add-transaction:hover,.transaction-export:hover,.transaction-show-filters:hover,.transaction-create:hover{
+  transform: scale(1.05);
+   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+}
 
 .filters-panel {
   background: white;

@@ -18,7 +18,19 @@
   margin: 0;
   color: var(--text-secondary);
 }
+.add-account,.bank-account-create{
+  background: #1c3787;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.add-account:hover,.bank-account-create:hover{
+  transform: scale(1.05);
 
+}
 .filters-bar {
   display: flex;
   gap: 1rem;
@@ -210,13 +222,13 @@
   padding: 0.5rem;
   border-radius: 6px;
   cursor: pointer;
-  color: var(--text-secondary);
+  color:#1c3787;
   font-size: 1rem;
   transition: all 0.2s ease;
 }
 
 .btn-icon:hover {
-  background: var(--primary-color);
+  background: #1c3787;
   color: white;
   border-color: var(--primary-color);
 }

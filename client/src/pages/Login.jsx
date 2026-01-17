@@ -86,7 +86,7 @@ const Login = () => {
             />
           </div>
           <div className="login-forgot-password">
-            <button className="login-forgot-password-btn">Forgot Password?</button>
+            <button type="button" className="login-forgot-password-btn">Forgot Password?</button>
           </div>
 
           {(show2FA || requires2FA) && (

@@ -189,7 +189,7 @@ const BankAccounts = () => {
           <h1>Bank Accounts</h1>
           <p>Manage bank accounts and cash balances</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button className="add-account" onClick={() => setShowModal(true)}>
           <FaPlus /> Add Account
         </button>
       </div>
@@ -499,7 +499,7 @@ const BankAccounts = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="bank-account-create">
                   {editingAccount ? "Update Account" : "Create Account"}
                 </button>
               </div>

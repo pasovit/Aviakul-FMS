@@ -328,7 +328,7 @@ const Invoices = () => {
     <div className="invoices-page">
       <div className="page-header">
         <h1>Invoices</h1>
-        <button className="btn-primary" onClick={() => handleOpenModal()}>
+        <button className="add-invoice" onClick={() => handleOpenModal()}>
           <FaPlus /> Create Invoice
         </button>
       </div>
@@ -345,7 +345,7 @@ const Invoices = () => {
               className="search-input"
             />
           </div>
-          <button type="submit" className="btn-secondary">
+          <button type="submit" className="invoice-search">
             Search
           </button>
         </form>
@@ -856,7 +856,7 @@ const Invoices = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="invoice-create">
                   {editingInvoice ? "Update" : "Create"} Invoice
                 </button>
               </div>

@@ -14,6 +14,19 @@
   font-size: 28px;
   color: #2c3e50;
 }
+.add-payment,.payments-create,.payments-search{
+  background: #1c3787;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.add-payment:hover,.payments-create:hover,.payments-search:hover{
+  transform: scale(1.05);
+
+}
 
 .filters-section {
   background: white;

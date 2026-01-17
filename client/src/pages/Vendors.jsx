@@ -266,7 +266,7 @@ const Vendors = () => {
     <div className="vendors-page">
       <div className="page-header">
         <h1>Vendors</h1>
-        <button className="btn-primary" onClick={() => handleOpenModal()}>
+        <button className="add-vendor" onClick={() => handleOpenModal()}>
           <FaPlus /> Add Vendor
         </button>
       </div>
@@ -283,7 +283,7 @@ const Vendors = () => {
               className="search-input"
             />
           </div>
-          <button type="submit" className="btn-secondary">
+          <button type="submit" className="vendor-search">
             Search
           </button>
         </form>
@@ -800,7 +800,7 @@ const Vendors = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="vendor-create">
                   {editingVendor ? "Update" : "Create"} Vendor
                 </button>
               </div>
