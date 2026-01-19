@@ -102,16 +102,26 @@
   border-bottom: 2px solid #dee2e6;
   white-space: nowrap;
 }
+.invoices-table tr {
+  height: 100%;
+}
 
 .invoices-table td {
   padding: 12px;
   border-bottom: 1px solid #e9ecef;
+   vertical-align: middle;
+  position: relative;
 }
+
+
 
 .invoices-table tbody tr:hover {
   background: #f8f9fa;
 }
-
+.no-actions {
+  color: #999;
+  font-size: 14px;
+}
 .invoice-number {
   font-weight: 600;
   color: #007bff;
@@ -197,31 +207,38 @@
   background: #f3e5f5;
   color: #6a1b9a;
 }
-
-.actions-cell {
+.invoice-actions-cell {
   display: flex;
-  gap: 8px;
+  align-items: center;
   justify-content: center;
+  gap: 10px;
+  height: 100%;
+  min-height: 100%;
+  flex-grow: 1;
 }
 
-.btn-icon {
-  background: none;
-  border: 1px solid var(--border-color);
-  padding: 0.5rem;
+
+.invoice-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #dbe3f0;
   border-radius: 6px;
+  background: white;
+  color: #1c3787;
   cursor: pointer;
-  color:#1c3787;
-  font-size: 1rem;
   transition: all 0.2s ease;
 }
 
-.btn-icon:hover {
+.invoice-btn-icon:hover {
   background: #1c3787;
-  color: white;
-  border-color: var(--primary-color);
+  color: #fff;
 }
 
-.btn-icon.danger:hover {
+
+.invoice-btn-icon.danger:hover {
   background: #d32f2f;
   color: white;
   border-color: #d32f2f;

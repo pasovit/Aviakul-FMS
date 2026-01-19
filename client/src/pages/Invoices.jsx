@@ -289,15 +289,15 @@ const Invoices = () => {
     }
   };
 
-const handleDelete = (id) => {
-  deleteWithConfirm({
-    title: "Are you sure?",
-    text: "This invoice will be cancelled!",
-    confirmText: "Cancel Invoice",
-    apiCall: () => invoiceAPI.delete(id),
-    onSuccess: fetchInvoices,
-  });
-};
+  const handleDelete = (id) => {
+    deleteWithConfirm({
+      title: "Are you sure?",
+      text: "This invoice will be cancelled!",
+      confirmText: "Cancel Invoice",
+      apiCall: () => invoiceAPI.delete(id),
+      onSuccess: fetchInvoices,
+    });
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -473,26 +473,31 @@ const handleDelete = (id) => {
                         : invoice.agingBucket}
                     </span>
                   </td>
-                  <td className="actions-cell">
+                  <td >
+                    <div className="invoice-actions-cell">
                     {invoice.status !== "paid" &&
-                      invoice.status !== "cancelled" && (
-                        <>
-                          <button
-                            onClick={() => handleOpenModal(invoice)}
-                            className="btn-icon"
-                            title="Edit"
-                          >
-                            <FaEdit />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(invoice._id)}
-                            className="btn-icon danger"
-                            title="Cancel"
-                          >
-                            <FaTrash />
-                          </button>
-                        </>
-                      )}
+                    invoice.status !== "cancelled" ? (
+                      <>
+                        <button
+                          onClick={() => handleOpenModal(invoice)}
+                          className="btn-icon"
+                          title="Edit"
+                        >
+                          <FaEdit />
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(invoice._id)}
+                          className="btn-icon danger"
+                          title="Cancel"
+                        >
+                          <FaTrash />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="no-actions">—</span>
+                    )}
+                    </div>
                   </td>
                 </tr>
               ))}
