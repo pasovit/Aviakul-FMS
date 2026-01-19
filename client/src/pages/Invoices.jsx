@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+
 import {
   FaPlus,
   FaEdit,
@@ -194,10 +196,10 @@ const Invoices = () => {
           name === "customer"
             ? value
             : name === "vendor"
-            ? value
-            : prev.invoiceType === "sales"
-            ? prev.customer
-            : prev.vendor;
+              ? value
+              : prev.invoiceType === "sales"
+                ? prev.customer
+                : prev.vendor;
         updated.dueDate = calculateDueDate(
           updated.invoiceDate,
           updated.invoiceType,
@@ -287,20 +289,15 @@ const Invoices = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to cancel this invoice?")) {
-      try {
-        await invoiceAPI.delete(id);
-        toast.success("Invoice cancelled successfully");
-        fetchInvoices();
-      } catch (error) {
-        toast.error(
-          error.response?.data?.message || "Failed to cancel invoice"
-        );
-        console.error(error);
-      }
-    }
-  };
+const handleDelete = (id) => {
+  deleteWithConfirm({
+    title: "Are you sure?",
+    text: "This invoice will be cancelled!",
+    confirmText: "Cancel Invoice",
+    apiCall: () => invoiceAPI.delete(id),
+    onSuccess: fetchInvoices,
+  });
+};
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -345,65 +342,68 @@ const Invoices = () => {
               className="search-input"
             />
           </div>
-          <button type="submit" className="invoice-search">
+          {/* <button type="submit" className="invoice-search">
             Search
-          </button>
+          </button> */}
+          <div className="filter-controls">
+            <select
+              value={filters.entity}
+              onChange={(e) =>
+                setFilters({ ...filters, entity: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Entities</option>
+              {entities.map((entity) => (
+                <option key={entity._id} value={entity._id}>
+                  {entity.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filters.invoiceType}
+              onChange={(e) =>
+                setFilters({ ...filters, invoiceType: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Types</option>
+              <option value="sales">Sales</option>
+              <option value="purchase">Purchase</option>
+            </select>
+
+            <select
+              value={filters.status}
+              onChange={(e) =>
+                setFilters({ ...filters, status: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Status</option>
+              {statusOptions.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filters.agingBucket}
+              onChange={(e) =>
+                setFilters({ ...filters, agingBucket: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Aging</option>
+              {agingBuckets.map((bucket) => (
+                <option key={bucket.value} value={bucket.value}>
+                  {bucket.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </form>
-
-        <div className="filter-controls">
-          <select
-            value={filters.entity}
-            onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
-            className="filter-select"
-          >
-            <option value="">All Entities</option>
-            {entities.map((entity) => (
-              <option key={entity._id} value={entity._id}>
-                {entity.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.invoiceType}
-            onChange={(e) =>
-              setFilters({ ...filters, invoiceType: e.target.value })
-            }
-            className="filter-select"
-          >
-            <option value="">All Types</option>
-            <option value="sales">Sales</option>
-            <option value="purchase">Purchase</option>
-          </select>
-
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="filter-select"
-          >
-            <option value="">All Status</option>
-            {statusOptions.map((status) => (
-              <option key={status.value} value={status.value}>
-                {status.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.agingBucket}
-            onChange={(e) =>
-              setFilters({ ...filters, agingBucket: e.target.value })
-            }
-            className="filter-select"
-          >
-            <option value="">All Aging</option>
-            {agingBuckets.map((bucket) => (
-              <option key={bucket.value} value={bucket.value}>
-                {bucket.label}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       {loading ? (

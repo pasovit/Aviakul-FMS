@@ -94,6 +94,9 @@ export const transactionAPI = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
   importCommit: (data) => api.post("/transactions/import/commit", data),
+  exportAll: () => api.get("/transactions/export/csv", {
+    responseType: "blob",
+  }),
 };
 
 // Dashboard API calls

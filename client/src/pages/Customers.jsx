@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+
 import {
   FaPlus,
   FaEdit,
@@ -222,20 +224,16 @@ const Customers = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this customer?")) {
-      try {
-        await customerAPI.delete(id);
-        toast.success("Customer deleted successfully");
-        fetchCustomers();
-      } catch (error) {
-        toast.error(
-          error.response?.data?.message || "Failed to delete customer"
-        );
-        console.error(error);
-      }
-    }
-  };
+const handleDelete = (id) => {
+  deleteWithConfirm({
+    title: "Are you sure?",
+    text: "This customer will be permanently deleted!",
+    confirmText: "Delete",
+    apiCall: () => customerAPI.delete(id),
+    onSuccess: fetchCustomers,
+  });
+};
+
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -273,12 +271,10 @@ const Customers = () => {
               className="search-input"
             />
           </div>
-          <button type="submit" className="customer-search">
+          {/* <button type="submit" className="customer-search">
             Search
-          </button>
-        </form>
-
-        <div className="filter-controls">
+          </button> */}
+          <div className="filter-controls">
           <select
             value={filters.entity}
             onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
@@ -319,6 +315,9 @@ const Customers = () => {
             <option value="">All Status</option>
           </select>
         </div>
+        </form>
+
+        
       </div>
 
       {loading ? (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+import { deleteWithConfirm } from "../utils/deleteWithConfirm";
 import {
   FaPlus,
   FaEdit,
@@ -85,7 +86,7 @@ const Payments = () => {
         ...filters,
         search: searchTerm,
       });
-      console.log(response.data.data)
+      console.log(response.data.data);
       setPayments(response.data.data);
     } catch (error) {
       toast.error("Failed to fetch payments");
@@ -98,7 +99,7 @@ const Payments = () => {
   const fetchEntities = async () => {
     try {
       const response = await entityAPI.getAll();
-      console.log(response.data.data)
+      console.log(response.data.data);
       setEntities(response.data.data);
     } catch (error) {
       console.error("Failed to fetch entities:", error);
@@ -117,9 +118,7 @@ const Payments = () => {
   const fetchUnallocatedInvoices = async (entity, paymentType) => {
     try {
       const invoiceType =
-        paymentType === "received"
-          ? "sales_invoice"
-          : "purchase_invoice";
+        paymentType === "received" ? "sales_invoice" : "purchase_invoice";
       const response = await invoiceAPI.getAll({
         entity,
         invoiceType,
@@ -235,20 +234,16 @@ const Payments = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this payment?")) {
-      return;
-    }
+const handleDelete = (id) => {
+  deleteWithConfirm({
+    title: "Are you sure?",
+    text: "This payment will be permanently deleted!",
+    confirmText: "Delete",
+    apiCall: () => paymentAPI.delete(id),
+    onSuccess: fetchPayments,
+  });
+};
 
-    try {
-      await paymentAPI.delete(id);
-      toast.success("Payment deleted successfully");
-      fetchPayments();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to delete payment");
-      console.error(error);
-    }
-  };
 
   const handleOpenAllocationModal = async (payment) => {
     try {
@@ -414,69 +409,71 @@ const Payments = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button type="submit" className="payments-search">
+          {/* <button type="submit" className="payments-search">
             Search
-          </button>
+          </button> */}
+          <div className="filter-controls">
+            <select
+              className="filter-select"
+              value={filters.entity}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, entity: e.target.value }))
+              }
+            >
+              <option value="">All Entities</option>
+              {entities.map((entity) => (
+                <option key={entity._id} value={entity._id}>
+                  {entity.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="filter-select"
+              value={filters.paymentType}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, paymentType: e.target.value }))
+              }
+            >
+              <option value="">All Types</option>
+              <option value="payment_received">Payment Received</option>
+              <option value="payment_made">Payment Made</option>
+            </select>
+
+            <select
+              className="filter-select"
+              value={filters.paymentMethod}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  paymentMethod: e.target.value,
+                }))
+              }
+            >
+              <option value="">All Methods</option>
+              {paymentMethods.map((method) => (
+                <option key={method.value} value={method.value}>
+                  {method.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="filter-select"
+              value={filters.status}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, status: e.target.value }))
+              }
+            >
+              <option value="">All Status</option>
+              {statusOptions.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </form>
-
-        <div className="filter-controls">
-          <select
-            className="filter-select"
-            value={filters.entity}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, entity: e.target.value }))
-            }
-          >
-            <option value="">All Entities</option>
-            {entities.map((entity) => (
-              <option key={entity._id} value={entity._id}>
-                {entity.entityName}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="filter-select"
-            value={filters.paymentType}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, paymentType: e.target.value }))
-            }
-          >
-            <option value="">All Types</option>
-            <option value="payment_received">Payment Received</option>
-            <option value="payment_made">Payment Made</option>
-          </select>
-
-          <select
-            className="filter-select"
-            value={filters.paymentMethod}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, paymentMethod: e.target.value }))
-            }
-          >
-            <option value="">All Methods</option>
-            {paymentMethods.map((method) => (
-              <option key={method.value} value={method.value}>
-                {method.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="filter-select"
-            value={filters.status}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, status: e.target.value }))
-            }
-          >
-            <option value="">All Status</option>
-            {statusOptions.map((status) => (
-              <option key={status.value} value={status.value}>
-                {status.label}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       {loading ? (

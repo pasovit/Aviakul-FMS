@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+import { deleteWithConfirm } from "../utils/deleteWithConfirm";
 import {
   FaPlus,
   FaEdit,
   FaTrash,
-  FaFileExcel,
+  FaFileExcel,  
   FaUpload,
   FaSearch,
   FaFilter,
@@ -217,22 +218,17 @@ const handleEdit = (transaction) => {
       );
     }
   };
+const handleDelete = (id) => {
+  deleteWithConfirm({
+    title: "Are you sure?",
+    text: "This transaction will be permanently deleted!",
+    confirmText: "Delete",
+    apiCall: () => transactionAPI.delete(id),
+    onSuccess: fetchTransactions,
+  });
+};
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this transaction?")) {
-      return;
-    }
 
-    try {
-      await transactionAPI.delete(id);
-      toast.success("Transaction deleted successfully");
-      fetchTransactions();
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to delete transaction"
-      );
-    }
-  };
 
   const handleBulkUpdate = async (status) => {
     if (selectedIds.length === 0) {
@@ -270,6 +266,29 @@ const handleEdit = (transaction) => {
       toast.error("Failed to export transactions");
     }
   };
+
+  const handleExportCSV = async () => {
+   try {
+    const response = await transactionAPI.exportAll({
+      responseType: "blob",
+    });
+
+    const blob = new Blob([response.data], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `transactions_${Date.now()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    toast.success("CSV exported successfully");
+  } catch (error) {
+    toast.error("Failed to export CSV");
+  }
+};
+
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -319,8 +338,11 @@ const handleEdit = (transaction) => {
           >
             <FaFilter /> Filters
           </button>
-          <button className="transaction-export" onClick={handleExport}>
-            <FaFileExcel /> Export
+          <button className="transaction-export" onClick={handleExportCSV}>
+            <FaFileExcel /> Export.CSV
+          </button>
+           <button className="transaction-export" onClick={handleExport}>
+            <FaFileExcel /> Export.xlsx
           </button>
           <button
             className="add-transaction"

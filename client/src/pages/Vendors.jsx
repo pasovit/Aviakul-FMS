@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { FaPlus, FaEdit, FaTrash, FaSearch } from "react-icons/fa";
 import { vendorAPI, entityAPI } from "../services/api";
+import { deleteWithConfirm } from "../utils/deleteWithConfirm";
 import "./Vendors.css";
 
 const Vendors = () => {
@@ -234,18 +235,17 @@ const Vendors = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this vendor?")) {
-      try {
-        await vendorAPI.delete(id);
-        toast.success("Vendor deleted successfully");
-        fetchVendors();
-      } catch (error) {
-        toast.error(error.response?.data?.message || "Failed to delete vendor");
-        console.error(error);
-      }
-    }
-  };
+const handleDelete = (id) => {
+  deleteWithConfirm({
+    title: "Are you sure?",
+    text: "This vendor will be permanently deleted!",
+    confirmText: "Delete",
+    apiCall: () => vendorAPI.delete(id),
+    onSuccess: fetchVendors,
+  });
+};
+
+
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -283,52 +283,54 @@ const Vendors = () => {
               className="search-input"
             />
           </div>
-          <button type="submit" className="vendor-search">
+          {/* <button type="submit" className="vendor-search">
             Search
-          </button>
+          </button> */}
+
+          <div className="filter-controls">
+            <select
+              value={filters.entity}
+              onChange={(e) =>
+                setFilters({ ...filters, entity: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Entities</option>
+              {entities.map((entity) => (
+                <option key={entity._id} value={entity._id}>
+                  {entity.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filters.category}
+              onChange={(e) =>
+                setFilters({ ...filters, category: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filters.isActive}
+              onChange={(e) =>
+                setFilters({ ...filters, isActive: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="true">Active Only</option>
+              <option value="false">Inactive Only</option>
+              <option value="">All Status</option>
+            </select>
+          </div>
         </form>
-
-        <div className="filter-controls">
-          <select
-            value={filters.entity}
-            onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
-            className="filter-select"
-          >
-            <option value="">All Entities</option>
-            {entities.map((entity) => (
-              <option key={entity._id} value={entity._id}>
-                {entity.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.category}
-            onChange={(e) =>
-              setFilters({ ...filters, category: e.target.value })
-            }
-            className="filter-select"
-          >
-            <option value="">All Categories</option>
-            {categories.map((cat) => (
-              <option key={cat.value} value={cat.value}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.isActive}
-            onChange={(e) =>
-              setFilters({ ...filters, isActive: e.target.value })
-            }
-            className="filter-select"
-          >
-            <option value="true">Active Only</option>
-            <option value="false">Inactive Only</option>
-            <option value="">All Status</option>
-          </select>
-        </div>
       </div>
 
       {loading ? (
