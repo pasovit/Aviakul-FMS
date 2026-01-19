@@ -358,7 +358,7 @@ const handleDelete = (id) => {
                   </button>
                   <button
                     onClick={() => handleDelete(vendor._id)}
-                    className="btn-icon btn-danger"
+                    className="btn-icon danger"
                     title="Delete"
                   >
                     <FaTrash />

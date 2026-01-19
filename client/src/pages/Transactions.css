@@ -58,6 +58,30 @@
   font-size: 0.85rem;
 }
 
+.btn-icon {
+  background: none;
+  border: 1px solid var(--border-color);
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  color:#1c3787;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+  background: #1c3787;
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.btn-icon.danger:hover {
+  background: #d32f2f;
+  color: white;
+  border-color: #d32f2f;
+}
+
+
 .transactions-table-container {
   background: white;
   border-radius: 12px;

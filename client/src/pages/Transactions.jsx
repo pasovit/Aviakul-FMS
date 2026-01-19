@@ -507,7 +507,8 @@ const handleDelete = (id) => {
                     <FiEdit />
                   </button>
                   <button
-                    className="btn-icon"
+                    className="btn-icon danger"
+                    title="Delete"
                     onClick={() => handleDelete(txn._id)}
                   >
                     <FaTrash />

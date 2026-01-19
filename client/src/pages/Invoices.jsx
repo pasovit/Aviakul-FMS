@@ -486,7 +486,7 @@ const handleDelete = (id) => {
                           </button>
                           <button
                             onClick={() => handleDelete(invoice._id)}
-                            className="btn-icon btn-danger"
+                            className="btn-icon danger"
                             title="Cancel"
                           >
                             <FaTrash />
@@ -728,7 +728,7 @@ const handleDelete = (id) => {
                                 <button
                                   type="button"
                                   onClick={() => removeLineItem(index)}
-                                  className="btn-icon btn-danger"
+                                  className="btn-icon danger"
                                   title="Remove"
                                 >
                                   <FaTrash />

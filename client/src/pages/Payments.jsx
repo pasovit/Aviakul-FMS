@@ -564,7 +564,7 @@ const handleDelete = (id) => {
                         <FaEdit />
                       </button>
                       <button
-                        className="btn-icon btn-danger"
+                        className="btn-icon danger"
                         onClick={() => handleDelete(payment._id)}
                         title="Delete"
                       >
