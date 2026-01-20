@@ -3,6 +3,9 @@ import { toast } from "react-toastify";
 import { FaPlus, FaEdit, FaTrash, FaSearch } from "react-icons/fa";
 import { vendorAPI, entityAPI } from "../services/api";
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
+
 import "./Vendors.css";
 
 const Vendors = () => {
@@ -235,17 +238,15 @@ const Vendors = () => {
     }
   };
 
-const handleDelete = (id) => {
-  deleteWithConfirm({
-    title: "Are you sure?",
-    text: "This vendor will be permanently deleted!",
-    confirmText: "Delete",
-    apiCall: () => vendorAPI.delete(id),
-    onSuccess: fetchVendors,
-  });
-};
-
-
+  const handleDelete = (id) => {
+    deleteWithConfirm({
+      title: "Are you sure?",
+      text: "This vendor will be permanently deleted!",
+      confirmText: "Delete",
+      apiCall: () => vendorAPI.delete(id),
+      onSuccess: fetchVendors,
+    });
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -384,7 +385,7 @@ const handleDelete = (id) => {
                   <span>
                     {
                       paymentTermsOptions.find(
-                        (p) => p.value === vendor.paymentTerms
+                        (p) => p.value === vendor.paymentTerms,
                       )?.label
                     }
                   </span>
@@ -412,7 +413,7 @@ const handleDelete = (id) => {
                         style={{
                           width: `${Math.min(vendor.creditUtilization, 100)}%`,
                           backgroundColor: getCreditUtilizationColor(
-                            vendor.creditUtilization
+                            vendor.creditUtilization,
                           ),
                         }}
                       />
@@ -503,25 +504,36 @@ const handleDelete = (id) => {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Phone</label>
-                    <input
-                      type="tel"
-                      name="phone"
+                    <PhoneInput
+                      defaultCountry="in"
                       value={formData.phone}
-                      onChange={handleChange}
-                      pattern="[0-9]{10}"
-                      placeholder="10-digit number"
+                      inputProps={{
+                        placeholder: "Enter phone number",
+                      }}
+                      onChange={(value) =>
+                        handleChange({
+                          target: {
+                            name: "phone",
+                            value: value,
+                          },
+                        })
+                      }
                     />
                   </div>
 
                   <div className="form-group">
                     <label>Alternate Phone</label>
-                    <input
-                      type="tel"
-                      name="alternatePhone"
+                    <PhoneInput
+                      defaultCountry="in"
                       value={formData.alternatePhone}
-                      onChange={handleChange}
-                      pattern="[0-9]{10}"
-                      placeholder="10-digit number"
+                      onChange={(value) =>
+                        handleChange({
+                          target: {
+                            name: "alternatePhone",
+                            value: value,
+                          },
+                        })
+                      }
                     />
                   </div>
                 </div>

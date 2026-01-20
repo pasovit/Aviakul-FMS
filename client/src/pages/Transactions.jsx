@@ -5,7 +5,7 @@ import {
   FaPlus,
   FaEdit,
   FaTrash,
-  FaFileExcel,  
+  FaFileExcel,
   FaUpload,
   FaSearch,
   FaFilter,
@@ -24,6 +24,7 @@ const Transactions = () => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [pagination, setPagination] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [filters, setFilters] = useState({
     entity: "",
@@ -77,7 +78,7 @@ const Transactions = () => {
       setPagination(response.data.pagination);
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Failed to fetch transactions"
+        error.response?.data?.message || "Failed to fetch transactions",
       );
     } finally {
       setLoading(false);
@@ -148,43 +149,47 @@ const Transactions = () => {
   };
 
   // ** ADDED: handle edit action
-const handleEdit = (transaction) => {
-  setEditingTransaction(transaction);
+  const handleEdit = (transaction) => {
+    setEditingTransaction(transaction);
 
-  setFormData({
-    entity: transaction.entity?._id || "",
-    bankAccount: transaction.bankAccount?._id || "",
-    transactionDate: transaction.transactionDate.split("T")[0],
-    type: transaction.type,
-    category: transaction.category,
-    partyName: transaction.partyName || "",
-    partyPAN: transaction.partyPAN || "",
-    partyGSTIN: transaction.partyGSTIN || "",
-    amount: transaction.amount,
-    cgst: transaction.gstDetails?.cgst || 0,
-    sgst: transaction.gstDetails?.sgst || 0,
-    igst: transaction.gstDetails?.igst || 0,
-    tdsSection: transaction.tdsDetails?.section || "",
-    tdsRate: transaction.tdsDetails?.rate || 0,
-    tdsAmount: transaction.tdsDetails?.amount || 0,
-    totalAmount: transaction.totalAmount,
-    paymentMethod: transaction.paymentMethod,
-    referenceNumber: transaction.referenceNumber || "",
-    invoiceNumber: transaction.invoiceNumber || "",
-    invoiceDate: transaction.invoiceDate
-      ? transaction.invoiceDate.split("T")[0]
-      : "",
-    status: transaction.status,
-    notes: transaction.notes || "",
-  });
+    setFormData({
+      entity: transaction.entity?._id || "",
+      bankAccount: transaction.bankAccount?._id || "",
+      transactionDate: transaction.transactionDate.split("T")[0],
+      type: transaction.type,
+      category: transaction.category,
+      partyName: transaction.partyName || "",
+      partyPAN: transaction.partyPAN || "",
+      partyGSTIN: transaction.partyGSTIN || "",
+      amount: transaction.amount,
+      cgst: transaction.gstDetails?.cgst || 0,
+      sgst: transaction.gstDetails?.sgst || 0,
+      igst: transaction.gstDetails?.igst || 0,
+      tdsSection: transaction.tdsDetails?.section || "",
+      tdsRate: transaction.tdsDetails?.rate || 0,
+      tdsAmount: transaction.tdsDetails?.amount || 0,
+      totalAmount: transaction.totalAmount,
+      paymentMethod: transaction.paymentMethod,
+      referenceNumber: transaction.referenceNumber || "",
+      invoiceNumber: transaction.invoiceNumber || "",
+      invoiceDate: transaction.invoiceDate
+        ? transaction.invoiceDate.split("T")[0]
+        : "",
+      status: transaction.status,
+      notes: transaction.notes || "",
+    });
 
-  setShowModal(true);
-};
+    setShowModal(true);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+
     try {
+      setIsSubmitting(true);
+
       const submitData = {
         ...formData,
         gstDetails: {
@@ -204,7 +209,6 @@ const handleEdit = (transaction) => {
         await transactionAPI.update(editingTransaction._id, submitData);
         toast.success("Transaction updated successfully");
       } else {
-        console.log(submitData);
         await transactionAPI.create(submitData);
         toast.success("Transaction created successfully");
       }
@@ -214,21 +218,30 @@ const handleEdit = (transaction) => {
       fetchTransactions();
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Failed to save transaction"
+        error.response?.data?.message || "Failed to save transaction",
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
-const handleDelete = (id) => {
-  deleteWithConfirm({
-    title: "Are you sure?",
-    text: "This transaction will be permanently deleted!",
-    confirmText: "Delete",
-    apiCall: () => transactionAPI.delete(id),
-    onSuccess: fetchTransactions,
-  });
+
+const handleDelete = async (id) => {
+  if (isSubmitting) return;
+
+  setIsSubmitting(true);
+
+  try {
+    await deleteWithConfirm({
+      title: "Are you sure?",
+      text: "This transaction will be permanently deleted!",
+      confirmText: "Delete",
+      apiCall: () => transactionAPI.delete(id),
+      onSuccess: fetchTransactions,
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
 };
-
-
 
   const handleBulkUpdate = async (status) => {
     if (selectedIds.length === 0) {
@@ -246,29 +259,33 @@ const handleDelete = (id) => {
       fetchTransactions();
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Failed to update transactions"
+        error.response?.data?.message || "Failed to update transactions",
       );
     }
   };
 
-  const handleExport = async () => {
-    try {
-      const response = await transactionAPI.exportToExcel(filters);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `transactions_${Date.now()}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success("Transactions exported successfully");
-    } catch (error) {
-      toast.error("Failed to export transactions");
-    }
-  };
+  // const handleExport = async () => {
+  //   try {
+  //     const response = await transactionAPI.exportToExcel(filters);
+  //     const url = window.URL.createObjectURL(new Blob([response.data]));
+  //     const link = document.createElement("a");
+  //     link.href = url;
+  //     link.setAttribute("download", `transactions_${Date.now()}.xlsx`);
+  //     document.body.appendChild(link);
+  //     link.click();
+  //     link.remove();
+  //     toast.success("Transactions exported successfully");
+  //   } catch (error) {
+  //     toast.error("Failed to export transactions");
+  //   }
+  // };
 
-  const handleExportCSV = async () => {
-   try {
+const handleExportCSV = async () => {
+  if (isSubmitting) return;
+
+  try {
+    setIsSubmitting(true);
+
     const response = await transactionAPI.exportAll({
       responseType: "blob",
     });
@@ -279,13 +296,13 @@ const handleDelete = (id) => {
     const link = document.createElement("a");
     link.href = url;
     link.download = `transactions_${Date.now()}.csv`;
-    document.body.appendChild(link);
     link.click();
-    link.remove();
 
     toast.success("CSV exported successfully");
-  } catch (error) {
+  } catch {
     toast.error("Failed to export CSV");
+  } finally {
+    setIsSubmitting(false);
   }
 };
 
@@ -325,7 +342,8 @@ const handleDelete = (id) => {
   }
 
   return (
-    <div className="transactions-page">
+    <div className={`transactions-page ${isSubmitting ? "disabled" : ""}`}>
+
       <div className="page-header">
         <div>
           <h1>Transactions</h1>
@@ -341,9 +359,9 @@ const handleDelete = (id) => {
           <button className="transaction-export" onClick={handleExportCSV}>
             <FaFileExcel /> Export.CSV
           </button>
-           <button className="transaction-export" onClick={handleExport}>
+          {/* <button className="transaction-export" onClick={handleExport}>
             <FaFileExcel /> Export.xlsx
-          </button>
+          </button> */}
           <button
             className="add-transaction"
             onClick={() => setShowModal(true)}
@@ -473,7 +491,7 @@ const handleDelete = (id) => {
                         setSelectedIds([...selectedIds, txn._id]);
                       } else {
                         setSelectedIds(
-                          selectedIds.filter((id) => id !== txn._id)
+                          selectedIds.filter((id) => id !== txn._id),
                         );
                       }
                     }}
@@ -503,7 +521,7 @@ const handleDelete = (id) => {
                   </span>
                 </td>
                 <td className="actions-cell">
-                  <button className="btn-icon"  onClick={() => handleEdit(txn)}>
+                  <button className="btn-icon" onClick={() => handleEdit(txn)}>
                     <FiEdit />
                   </button>
                   <button
@@ -718,8 +736,16 @@ const handleDelete = (id) => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="transaction-create">
-                  {editingTransaction ? "Update" : "Create"}
+                <button
+                  type="submit"
+                  className="transaction-create"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Processing..."
+                    : editingTransaction
+                      ? "Update"
+                      : "Create"}
                 </button>
               </div>
             </form>

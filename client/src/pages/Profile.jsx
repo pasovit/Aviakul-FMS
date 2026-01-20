@@ -200,7 +200,7 @@ const Profile = () => {
               <div className="form-group">
                 <label htmlFor="currentPassword" className="form-label">
                   Current Password
-                </label>
+                </label> 
                 <input
                   type="password"
                   id="currentPassword"
@@ -252,7 +252,7 @@ const Profile = () => {
 
               <button
                 type="submit"
-                className="btn btn-primary"
+                className="Change-password"
                 disabled={passwordLoading}
               >
                 {passwordLoading ? "Changing..." : "Change Password"}
@@ -280,7 +280,7 @@ const Profile = () => {
                 {!qrCode ? (
                   <button
                     onClick={handleSetup2FA}
-                    className="btn btn-primary"
+                    className="two-factor-auth"
                     disabled={twoFALoading}
                   >
                     {twoFALoading ? "Setting up..." : "Enable 2FA"}
@@ -316,7 +316,7 @@ const Profile = () => {
                       </div>
                       <button
                         type="submit"
-                        className="btn btn-success"
+                        className="two-factor-auth"
                         disabled={twoFALoading}
                       >
                         {twoFALoading ? "Verifying..." : "Verify and Enable"}

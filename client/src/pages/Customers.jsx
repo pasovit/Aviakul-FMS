@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
 
 import {
   FaPlus,
@@ -224,16 +226,15 @@ const Customers = () => {
     }
   };
 
-const handleDelete = (id) => {
-  deleteWithConfirm({
-    title: "Are you sure?",
-    text: "This customer will be permanently deleted!",
-    confirmText: "Delete",
-    apiCall: () => customerAPI.delete(id),
-    onSuccess: fetchCustomers,
-  });
-};
-
+  const handleDelete = (id) => {
+    deleteWithConfirm({
+      title: "Are you sure?",
+      text: "This customer will be permanently deleted!",
+      confirmText: "Delete",
+      apiCall: () => customerAPI.delete(id),
+      onSuccess: fetchCustomers,
+    });
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -275,49 +276,49 @@ const handleDelete = (id) => {
             Search
           </button> */}
           <div className="filter-controls">
-          <select
-            value={filters.entity}
-            onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
-            className="filter-select"
-          >
-            <option value="">All Entities</option>
-            {entities.map((entity) => (
-              <option key={entity._id} value={entity._id}>
-                {entity.name}
-              </option>
-            ))}
-          </select>
+            <select
+              value={filters.entity}
+              onChange={(e) =>
+                setFilters({ ...filters, entity: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Entities</option>
+              {entities.map((entity) => (
+                <option key={entity._id} value={entity._id}>
+                  {entity.name}
+                </option>
+              ))}
+            </select>
 
-          <select
-            value={filters.category}
-            onChange={(e) =>
-              setFilters({ ...filters, category: e.target.value })
-            }
-            className="filter-select"
-          >
-            <option value="">All Categories</option>
-            {categories.map((cat) => (
-              <option key={cat.value} value={cat.value}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
+            <select
+              value={filters.category}
+              onChange={(e) =>
+                setFilters({ ...filters, category: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
 
-          <select
-            value={filters.isActive}
-            onChange={(e) =>
-              setFilters({ ...filters, isActive: e.target.value })
-            }
-            className="filter-select"
-          >
-            <option value="true">Active Only</option>
-            <option value="false">Inactive Only</option>
-            <option value="">All Status</option>
-          </select>
-        </div>
+            <select
+              value={filters.isActive}
+              onChange={(e) =>
+                setFilters({ ...filters, isActive: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="true">Active Only</option>
+              <option value="false">Inactive Only</option>
+              <option value="">All Status</option>
+            </select>
+          </div>
         </form>
-
-        
       </div>
 
       {loading ? (
@@ -371,7 +372,7 @@ const handleDelete = (id) => {
                   <span>
                     {
                       creditTermsOptions.find(
-                        (p) => p.value === customer.creditTerms
+                        (p) => p.value === customer.creditTerms,
                       )?.label
                     }
                   </span>
@@ -408,10 +409,10 @@ const handleDelete = (id) => {
                         style={{
                           width: `${Math.min(
                             customer.creditUtilization,
-                            100
+                            100,
                           )}%`,
                           backgroundColor: getCreditUtilizationColor(
-                            customer.creditUtilization
+                            customer.creditUtilization,
                           ),
                         }}
                       />
@@ -502,25 +503,33 @@ const handleDelete = (id) => {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Phone</label>
-                    <input
-                      type="tel"
-                      name="phone"
+                    <PhoneInput
+                      defaultCountry="in"
                       value={formData.phone}
-                      onChange={handleChange}
-                      pattern="[0-9]{10}"
-                      placeholder="10-digit number"
+                      onChange={(value) =>
+                        handleChange({
+                          target: {
+                            name: "phone",
+                            value: value,
+                          },
+                        })
+                      }
                     />
                   </div>
 
                   <div className="form-group">
                     <label>Alternate Phone</label>
-                    <input
-                      type="tel"
-                      name="alternatePhone"
+                    <PhoneInput
+                      defaultCountry="in"
                       value={formData.alternatePhone}
-                      onChange={handleChange}
-                      pattern="[0-9]{10}"
-                      placeholder="10-digit number"
+                      onChange={(value) =>
+                        handleChange({
+                          target: {
+                            name: "alternatePhone",
+                            value: value,
+                          },
+                        })
+                      }
                     />
                   </div>
                 </div>

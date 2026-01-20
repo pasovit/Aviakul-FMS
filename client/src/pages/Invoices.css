@@ -1,6 +1,11 @@
 .invoices-page {
   padding: 20px;
 }
+.disabled {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
 .page-actions{
   display: flex;
   gap: 1rem;

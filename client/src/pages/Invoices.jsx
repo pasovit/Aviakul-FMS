@@ -28,6 +28,7 @@ const Invoices = () => {
     status: "",
     agingBucket: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     entity: "",
@@ -204,7 +205,7 @@ const Invoices = () => {
         updated.dueDate = calculateDueDate(
           updated.invoiceDate,
           updated.invoiceType,
-          partyId
+          partyId,
         );
       }
 
@@ -263,16 +264,15 @@ const Invoices = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+
     try {
+      setIsSubmitting(true);
+
       const payload = { ...formData };
 
-      //remove invalid ObjectIds
-      if (payload.invoiceType === "sales") {
-        delete payload.vendor;
-      }
-      if (payload.invoiceType === "purchase") {
-        delete payload.customer;
-      }
+      if (payload.invoiceType === "sales") delete payload.vendor;
+      if (payload.invoiceType === "purchase") delete payload.customer;
 
       if (editingInvoice) {
         await invoiceAPI.update(editingInvoice._id, payload);
@@ -286,12 +286,17 @@ const Invoices = () => {
       fetchInvoices();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save invoice");
-      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleExport = async () => {
+    if (isSubmitting) return;
+
     try {
+      setIsSubmitting(true);
+
       const response = await invoiceAPI.exportCSV({
         ...filters,
         search: searchTerm,
@@ -303,26 +308,32 @@ const Invoices = () => {
       const link = document.createElement("a");
       link.href = url;
       link.download = `invoices_${new Date().toISOString().slice(0, 10)}.csv`;
-
-      document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
 
-      toast.success("Invoice export started");
-    } catch (error) {
+      toast.success("Invoice exported successfully");
+    } catch {
       toast.error("Failed to export invoices");
-      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDelete = (id) => {
-    deleteWithConfirm({
-      title: "Are you sure?",
-      text: "This invoice will be cancelled!",
-      confirmText: "Cancel Invoice",
-      apiCall: () => invoiceAPI.delete(id),
-      onSuccess: fetchInvoices,
-    });
+  const handleDelete = async (id) => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await deleteWithConfirm({
+        title: "Are you sure?",
+        text: "This invoice will be cancelled!",
+        confirmText: "Cancel Invoice",
+        apiCall: () => invoiceAPI.delete(id),
+        onSuccess: fetchInvoices,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatCurrency = (amount) => {
@@ -348,12 +359,17 @@ const Invoices = () => {
   const { subtotal, taxTotal, total } = calculateTotals();
 
   return (
-    <div className="invoices-page">
+    <div className={`invoices-page ${isSubmitting ? "disabled" : ""}`}>
+
       <div className="page-header">
         <h1>Invoices</h1>
 
         <div className="page-actions">
-          <button className="invoice-export-button" onClick={handleExport}>
+          <button
+            className="invoice-export-button"
+            onClick={handleExport}
+            disabled={isSubmitting}
+          >
             <FaFileExport /> Export CSV
           </button>
 
@@ -463,10 +479,9 @@ const Invoices = () => {
               {invoices.map((invoice) => (
                 <tr key={invoice._id}>
                   <td>
-                    <span  className="invoice-number">
-                       <FaFileInvoice /> {invoice.invoiceNumber}
+                    <span className="invoice-number">
+                      <FaFileInvoice /> {invoice.invoiceNumber}
                     </span>
-                   
                   </td>
                   <td>
                     <span className={`type-badge ${invoice.invoiceType}`}>
@@ -517,7 +532,7 @@ const Invoices = () => {
                           <button
                             onClick={() => handleOpenModal(invoice)}
                             className="btn-icon"
-                            title="Edit"
+                            disabled={isSubmitting}
                           >
                             <FaEdit />
                           </button>
@@ -525,7 +540,7 @@ const Invoices = () => {
                           <button
                             onClick={() => handleDelete(invoice._id)}
                             className="btn-icon danger"
-                            title="Cancel"
+                            disabled={isSubmitting}
                           >
                             <FaTrash />
                           </button>
@@ -692,7 +707,7 @@ const Invoices = () => {
                                   handleLineItemChange(
                                     index,
                                     "description",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="Item description"
@@ -707,7 +722,7 @@ const Invoices = () => {
                                   handleLineItemChange(
                                     index,
                                     "quantity",
-                                    parseFloat(e.target.value) || 0
+                                    parseFloat(e.target.value) || 0,
                                   )
                                 }
                                 min="0.01"
@@ -723,7 +738,7 @@ const Invoices = () => {
                                   handleLineItemChange(
                                     index,
                                     "unit",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="nos"
@@ -737,7 +752,7 @@ const Invoices = () => {
                                   handleLineItemChange(
                                     index,
                                     "rate",
-                                    parseFloat(e.target.value) || 0
+                                    parseFloat(e.target.value) || 0,
                                   )
                                 }
                                 min="0"
@@ -753,7 +768,7 @@ const Invoices = () => {
                                   handleLineItemChange(
                                     index,
                                     "taxRate",
-                                    parseFloat(e.target.value) || 0
+                                    parseFloat(e.target.value) || 0,
                                   )
                                 }
                                 min="0"
@@ -897,8 +912,17 @@ const Invoices = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="invoice-create">
-                  {editingInvoice ? "Update" : "Create"} Invoice
+                <button
+                  type="submit"
+                  className="invoice-create"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Processing..."
+                    : editingInvoice
+                      ? "Update"
+                      : "Create"}{" "}
+                  Invoice
                 </button>
               </div>
             </form>
