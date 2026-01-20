@@ -14,7 +14,11 @@
   font-size: 28px;
   color: #2c3e50;
 }
-.add-payment,.payments-create,.payments-search{
+.page-actions{
+  display: flex;
+  gap: 1rem;
+}
+.add-payment,.payments-create,.payments-search,.payment-export-button{
   background: #1c3787;
   color: white;
   border: none;
@@ -23,7 +27,7 @@
   cursor: pointer;
   transition: transform 0.2s ease;
 }
-.add-payment:hover,.payments-create:hover,.payments-search:hover{
+.add-payment:hover,.payments-create:hover,.payments-search:hover,.payment-export-button:hover{
   transform: scale(1.05);
 
 }

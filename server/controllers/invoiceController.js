@@ -4,6 +4,8 @@ const Vendor = require("../models/Vendor");
 const { logAction } = require("../middleware/audit");
 const mongoose = require("mongoose");
 
+const { Parser } = require("json2csv");
+
 // Get all invoices with filters
 exports.getInvoices = async (req, res) => {
   try {
@@ -213,7 +215,7 @@ exports.updateInvoice = async (req, res) => {
         message: "Invoice not found",
       });
     }
-    
+
     // Cannot update paid or cancelled invoices
     if (invoice.status === "paid" || invoice.status === "cancelled") {
       return res.status(400).json({
@@ -264,7 +266,7 @@ exports.updateInvoice = async (req, res) => {
   }
 };
 
-// Delete invoice (cancel) 
+// Delete invoice (cancel)
 exports.deleteInvoice = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -467,6 +469,74 @@ exports.getInvoiceSummary = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch invoice summary",
+      error: error.message,
+    });
+  }
+};
+
+exports.exportCSV = async (req, res) => {
+  try {
+    const { invoiceType, status, agingBucket, search, entity } = req.query;
+
+    const userRole = req.user.role;
+    const userEntity = req.user.entity;
+
+    let query = {};
+
+    // Entity access control
+    if (userRole === "employee" || userRole === "observer") {
+      query.entity = userEntity;
+    } else if (entity) {
+      query.entity = entity;
+    }
+
+    if (invoiceType) query.invoiceType = invoiceType;
+    if (status) query.status = status;
+    if (agingBucket) query.agingBucket = agingBucket;
+
+    if (search) {
+      query.$or = [{ invoiceNumber: { $regex: search, $options: "i" } }];
+    }
+
+    const invoices = await Invoice.find(query)
+      .populate("entity", "name")
+      .populate("customer", "name customerCode")
+      .populate("vendor", "name vendorCode")
+      .sort({ invoiceDate: -1 });
+
+    const data = invoices.map((inv) => ({
+      Invoice_No: inv.invoiceNumber,
+      Type: inv.invoiceType,
+      Entity: inv.entity?.name || "",
+      Party:
+        inv.invoiceType === "sales" ? inv.customer?.name : inv.vendor?.name,
+      Invoice_Date: inv.invoiceDate?.toISOString().split("T")[0],
+      Due_Date: inv.dueDate?.toISOString().split("T")[0],
+      Subtotal: inv.subtotal || 0,
+      Tax: inv.taxAmount || 0,
+      Total: inv.totalAmount,
+      Paid: inv.amountPaid,
+      Due: inv.amountDue,
+      Status: inv.status,
+      Aging: inv.agingBucket,
+      Created_At: inv.createdAt?.toISOString().split("T")[0],
+    }));
+
+    const parser = new Parser();
+    const csv = parser.parse(data);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=invoices_${Date.now()}.csv`
+    );
+
+    return res.status(200).send(csv);
+  } catch (error) {
+    console.error("CSV Export Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to export invoices",
       error: error.message,
     });
   }

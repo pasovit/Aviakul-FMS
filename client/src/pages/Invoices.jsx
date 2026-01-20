@@ -8,6 +8,7 @@ import {
   FaTrash,
   FaSearch,
   FaFileInvoice,
+  FaFileExport,
 } from "react-icons/fa";
 import { invoiceAPI, customerAPI, vendorAPI, entityAPI } from "../services/api";
 import "./Invoices.css";
@@ -289,6 +290,31 @@ const Invoices = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const response = await invoiceAPI.exportCSV({
+        ...filters,
+        search: searchTerm,
+      });
+
+      const blob = new Blob([response.data], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `invoices_${new Date().toISOString().slice(0, 10)}.csv`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Invoice export started");
+    } catch (error) {
+      toast.error("Failed to export invoices");
+      console.error(error);
+    }
+  };
+
   const handleDelete = (id) => {
     deleteWithConfirm({
       title: "Are you sure?",
@@ -325,9 +351,16 @@ const Invoices = () => {
     <div className="invoices-page">
       <div className="page-header">
         <h1>Invoices</h1>
-        <button className="add-invoice" onClick={() => handleOpenModal()}>
-          <FaPlus /> Create Invoice
-        </button>
+
+        <div className="page-actions">
+          <button className="invoice-export-button" onClick={handleExport}>
+            <FaFileExport /> Export CSV
+          </button>
+
+          <button className="add-invoice" onClick={() => handleOpenModal()}>
+            <FaPlus /> Create Invoice
+          </button>
+        </div>
       </div>
 
       <div className="filters-section">
@@ -429,8 +462,11 @@ const Invoices = () => {
             <tbody>
               {invoices.map((invoice) => (
                 <tr key={invoice._id}>
-                  <td className="invoice-number">
-                    <FaFileInvoice /> {invoice.invoiceNumber}
+                  <td>
+                    <span  className="invoice-number">
+                       <FaFileInvoice /> {invoice.invoiceNumber}
+                    </span>
+                   
                   </td>
                   <td>
                     <span className={`type-badge ${invoice.invoiceType}`}>
@@ -473,30 +509,30 @@ const Invoices = () => {
                         : invoice.agingBucket}
                     </span>
                   </td>
-                  <td >
+                  <td>
                     <div className="invoice-actions-cell">
-                    {invoice.status !== "paid" &&
-                    invoice.status !== "cancelled" ? (
-                      <>
-                        <button
-                          onClick={() => handleOpenModal(invoice)}
-                          className="btn-icon"
-                          title="Edit"
-                        >
-                          <FaEdit />
-                        </button>
+                      {invoice.status !== "paid" &&
+                      invoice.status !== "cancelled" ? (
+                        <>
+                          <button
+                            onClick={() => handleOpenModal(invoice)}
+                            className="btn-icon"
+                            title="Edit"
+                          >
+                            <FaEdit />
+                          </button>
 
-                        <button
-                          onClick={() => handleDelete(invoice._id)}
-                          className="btn-icon danger"
-                          title="Cancel"
-                        >
-                          <FaTrash />
-                        </button>
-                      </>
-                    ) : (
-                      <span className="no-actions">—</span>
-                    )}
+                          <button
+                            onClick={() => handleDelete(invoice._id)}
+                            className="btn-icon danger"
+                            title="Cancel"
+                          >
+                            <FaTrash />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="no-actions">—</span>
+                      )}
                     </div>
                   </td>
                 </tr>

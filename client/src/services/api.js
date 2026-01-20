@@ -94,9 +94,10 @@ export const transactionAPI = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
   importCommit: (data) => api.post("/transactions/import/commit", data),
-  exportAll: () => api.get("/transactions/export/csv", {
-    responseType: "blob",
-  }),
+  exportAll: () =>
+    api.get("/transactions/export/csv", {
+      responseType: "blob",
+    }),
 };
 
 // Dashboard API calls
@@ -142,6 +143,11 @@ export const invoiceAPI = {
   delete: (id) => api.delete(`/invoices/${id}`),
   getAgingReport: (params) => api.get("/invoices/aging-report", { params }),
   getSummary: (params) => api.get("/invoices/summary", { params }),
+  exportCSV: (params) =>
+    api.get("invoices/export/csv", {
+      params,
+      responseType: "blob",
+    }),
 };
 
 // Payment API calls
@@ -154,6 +160,11 @@ export const paymentAPI = {
   allocate: (id, data) => api.post(`/payments/${id}/allocate`, data),
   getUnallocated: (params) => api.get("/payments/unallocated", { params }),
   getSummary: (params) => api.get("/payments/summary", { params }),
+  exportCSV: (params) =>
+    api.get("/payments/export/csv", {
+      params,
+      responseType: "blob",
+    }),
 };
 
 export default api;

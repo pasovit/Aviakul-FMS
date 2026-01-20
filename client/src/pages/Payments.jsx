@@ -8,6 +8,7 @@ import {
   FaSearch,
   FaMoneyBillWave,
   FaLink,
+  FaFileExport,
 } from "react-icons/fa";
 import {
   paymentAPI,
@@ -234,16 +235,15 @@ const Payments = () => {
     }
   };
 
-const handleDelete = (id) => {
-  deleteWithConfirm({
-    title: "Are you sure?",
-    text: "This payment will be permanently deleted!",
-    confirmText: "Delete",
-    apiCall: () => paymentAPI.delete(id),
-    onSuccess: fetchPayments,
-  });
-};
-
+  const handleDelete = (id) => {
+    deleteWithConfirm({
+      title: "Are you sure?",
+      text: "This payment will be permanently deleted!",
+      confirmText: "Delete",
+      apiCall: () => paymentAPI.delete(id),
+      onSuccess: fetchPayments,
+    });
+  };
 
   const handleOpenAllocationModal = async (payment) => {
     try {
@@ -388,13 +388,44 @@ const handleDelete = (id) => {
     return payment.amount - allocated;
   };
 
+  const handleExport = async () => {
+    try {
+      const response = await paymentAPI.exportCSV({
+        ...filters,
+        search: searchTerm,
+      });
+
+      const blob = new Blob([response.data], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `payments_${new Date().toISOString().slice(0, 10)}.csv`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Payments exported successfully");
+    } catch (error) {
+      toast.error("Failed to export payments");
+    }
+  };
+
   return (
     <div className="payments-page">
       <div className="page-header">
         <h1>Payments</h1>
-        <button className="add-payment" onClick={() => handleOpenModal()}>
-          <FaPlus /> Add Payment
-        </button>
+
+        <div className="page-actions">
+          <button className="payment-export-button" onClick={handleExport}>
+            <FaFileExport /> Export CSV
+          </button>
+
+          <button className="add-payment" onClick={() => handleOpenModal()}>
+            <FaPlus /> Add Payment
+          </button>
+        </div>
       </div>
 
       <div className="filters-section">
