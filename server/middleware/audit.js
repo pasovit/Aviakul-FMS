@@ -1,52 +1,97 @@
 const AuditLog = require("../models/AuditLog");
 const { getClientInfo } = require("../utils/helpers");
 
-// Middleware to log all actions
-const auditMiddleware = async (req, res, next) => {
-  // Store original send function
+/**
+ * HTTP method → Audit action mapping
+ * Must match AuditLog.action enum
+ */
+const ACTION_MAP = {
+  get: "view",
+  post: "create",
+  put: "update",
+  patch: "update",
+  delete: "delete",
+};
+
+/**
+ * API resource → Audit resource mapping
+ * Must match AuditLog.resource enum
+ */
+const RESOURCE_MAP = {
+  auth: "auth",
+  users: "user",
+  entities: "entity",
+  "bank-accounts": "bank_account",
+  transactions: "transaction",
+  invoices: "invoice",
+  payments: "payment",
+  vendors: "client",
+  customers: "client",
+  dashboard: "report",
+  settings: "settings",
+};
+
+/**
+ * Global audit middleware
+ * Logs all successful API actions
+ */
+const auditMiddleware = (req, res, next) => {
   const originalSend = res.send;
 
-  // Override send function
   res.send = function (data) {
-    // Log the action
-    if (req.user && res.statusCode < 400) {
+    try {
+      if (!req.user || res.statusCode >= 400) {
+        return originalSend.call(this, data);
+      }
+
       const clientInfo = getClientInfo(req);
+
+      const method = req.method.toLowerCase();
+      const rawResource =
+        req.baseUrl?.split("/").pop() || req.path.split("/")[1];
+
+      const action = ACTION_MAP[method] || "view";
+      const resource = RESOURCE_MAP[rawResource] || "report";
 
       const logData = {
         user: req.user._id,
         userName: req.user.username,
-        action: req.method.toLowerCase(),
-        resource: req.baseUrl.split("/").pop() || req.path.split("/")[1],
-        resourceId: req.params.id || req.body._id,
+        action,
+        resource,
+        resourceId: req.params?.id || req.body?._id,
         description: `${req.method} ${req.originalUrl}`,
         ip: clientInfo.ip,
         userAgent: clientInfo.userAgent,
-        status: res.statusCode < 400 ? "success" : "failure",
+        status: "success",
       };
 
-      // Add entity context if available
-      if (req.body.entity) {
+      // Entity context
+      if (req.body?.entity) {
         logData.entity = req.body.entity;
       }
 
-      // Add changes for update operations
-      if (req.method === "PUT" && req.body) {
+      // Track updates
+      if (["put", "patch"].includes(method) && req.body) {
         logData.changes = {
           after: req.body,
         };
       }
 
+      // Fire and forget (never block API)
       AuditLog.log(logData);
+    } catch (error) {
+      console.error("Audit logging failed:", error.message);
     }
 
-    // Call original send
-    originalSend.call(this, data);
+    return originalSend.call(this, data);
   };
 
   next();
 };
 
-// Log specific action (use in controllers)
+/**
+ * Manual audit logging (use inside controllers)
+ */
 const logAction = async (
   req,
   action,
@@ -69,23 +114,21 @@ const logAction = async (
       description,
       ip: clientInfo.ip,
       userAgent: clientInfo.userAgent,
-      metadata,
       status: "success",
+      metadata,
     };
 
-    // Add entity context if available
     if (metadata.entity) {
       logData.entity = metadata.entity;
     }
 
-    // Add changes if available
     if (metadata.changes) {
       logData.changes = metadata.changes;
     }
 
     await AuditLog.log(logData);
   } catch (error) {
-    console.error("Audit logging error:", error);
+    console.error("Manual audit log failed:", error.message);
   }
 };
 

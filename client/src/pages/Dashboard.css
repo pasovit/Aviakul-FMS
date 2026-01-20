@@ -82,114 +82,6 @@
   color: var(--success-color);
 }
 
-/* Dashboard Content */
-.dashboard-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.card-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--dark-text);
-  margin-bottom: 1.5rem;
-}
-
-/* Features List */
-.features-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.feature-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.feature-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: var(--success-color);
-  color: var(--white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.feature-item h4 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--dark-text);
-  margin: 0 0 0.25rem 0;
-}
-
-.feature-item p {
-  font-size: 0.875rem;
-  color: var(--light-text);
-  margin: 0;
-}
-
-/* Phases List */
-.phases-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.phase-item {
-  padding: 1rem;
-  background-color: var(--light-bg);
-  border-radius: 8px;
-  border-left: 4px solid var(--primary-color);
-}
-
-.phase-item h4 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--dark-text);
-  margin: 0 0 0.5rem 0;
-}
-
-.phase-item p {
-  font-size: 0.875rem;
-  color: var(--light-text);
-  margin: 0;
-}
-
-/* Account Info */
-.account-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background-color: var(--light-bg);
-  border-radius: 6px;
-}
-
-.info-label {
-  font-weight: 600;
-  color: var(--dark-text);
-  font-size: 0.875rem;
-}
-
-.info-value {
-  color: var(--light-text);
-  font-size: 0.875rem;
-}
-
 @media (max-width: 768px) {
   .dashboard-container {
     padding: 1rem;
@@ -240,3 +132,114 @@
   font-size: 12px;
   font-weight: 600;
 }
+
+/* 
+.dashboard-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--dark-text);
+  margin-bottom: 1.5rem;
+}
+
+
+.features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.feature-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--success-color);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.feature-item h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--dark-text);
+  margin: 0 0 0.25rem 0;
+}
+
+.feature-item p {
+  font-size: 0.875rem;
+  color: var(--light-text);
+  margin: 0;
+}
+
+
+.phases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.phase-item {
+  padding: 1rem;
+  background-color: var(--light-bg);
+  border-radius: 8px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.phase-item h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--dark-text);
+  margin: 0 0 0.5rem 0;
+}
+
+.phase-item p {
+  font-size: 0.875rem;
+  color: var(--light-text);
+  margin: 0;
+}
+
+
+.account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: var(--light-bg);
+  border-radius: 6px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: var(--dark-text);
+  font-size: 0.875rem;
+}
+
+.info-value {
+  color: var(--light-text);
+  font-size: 0.875rem;
+}
+
+
+  */

@@ -11,6 +11,7 @@ const {
   exportToExcel,
   importPreview,
   importCommit,
+  exportCSV
 } = require("../controllers/transactionController");
 const { protect, authorize } = require("../middleware/auth");
 const { auditMiddleware } = require("../middleware/audit");
@@ -56,6 +57,7 @@ router.use(protect);
 router.get("/", auditMiddleware, getTransactions);
 router.get("/export", auditMiddleware, exportToExcel);
 router.get("/:id", auditMiddleware, getTransaction);
+router.get("/export/csv",auditMiddleware,exportCSV);
 
 // Admin+ routes
 router.post(

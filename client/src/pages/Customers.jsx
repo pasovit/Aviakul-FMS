@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+
 import {
   FaPlus,
   FaEdit,
@@ -222,20 +224,16 @@ const Customers = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this customer?")) {
-      try {
-        await customerAPI.delete(id);
-        toast.success("Customer deleted successfully");
-        fetchCustomers();
-      } catch (error) {
-        toast.error(
-          error.response?.data?.message || "Failed to delete customer"
-        );
-        console.error(error);
-      }
-    }
-  };
+const handleDelete = (id) => {
+  deleteWithConfirm({
+    title: "Are you sure?",
+    text: "This customer will be permanently deleted!",
+    confirmText: "Delete",
+    apiCall: () => customerAPI.delete(id),
+    onSuccess: fetchCustomers,
+  });
+};
+
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -256,7 +254,7 @@ const Customers = () => {
     <div className="customers-page">
       <div className="page-header">
         <h1>Customers</h1>
-        <button className="btn-primary" onClick={() => handleOpenModal()}>
+        <button className="add-customer" onClick={() => handleOpenModal()}>
           <FaPlus /> Add Customer
         </button>
       </div>
@@ -273,12 +271,10 @@ const Customers = () => {
               className="search-input"
             />
           </div>
-          <button type="submit" className="btn-secondary">
+          {/* <button type="submit" className="customer-search">
             Search
-          </button>
-        </form>
-
-        <div className="filter-controls">
+          </button> */}
+          <div className="filter-controls">
           <select
             value={filters.entity}
             onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
@@ -319,6 +315,9 @@ const Customers = () => {
             <option value="">All Status</option>
           </select>
         </div>
+        </form>
+
+        
       </div>
 
       {loading ? (
@@ -346,7 +345,7 @@ const Customers = () => {
                   </button>
                   <button
                     onClick={() => handleDelete(customer._id)}
-                    className="btn-icon btn-danger"
+                    className="btn-icon danger"
                     title="Delete"
                   >
                     <FaTrash />
@@ -756,7 +755,7 @@ const Customers = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="customer-create">
                   {editingCustomer ? "Update" : "Create"} Customer
                 </button>
               </div>

@@ -46,12 +46,12 @@ const Layout = ({ children }) => {
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2>Aviakul FMS</h2>
-          <p className="user-info">{user?.fullName || user?.username}</p>
-          <span className="user-role">{user?.role?.replace("_", " ")}</span>
+          {/* <p className="user-info">{user?.fullName || user?.username}</p>
+          <span className="user-role">{user?.role?.replace("_", " ")}</span> */}
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
+          {navItems.map((item) => ( 
             <Link
               key={item.path}
               to={item.path}
@@ -64,8 +64,8 @@ const Layout = ({ children }) => {
         </nav>
 
         <div className="sidebar-footer">
-          <button onClick={handleLogout} className="nav-item logout-btn">
-            <FiLogOut />
+          <button onClick={handleLogout} className="logout-btn">
+            <FiLogOut size={20} className="logout-icon"/>
             <span>Logout</span>
           </button>
         </div>

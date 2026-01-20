@@ -119,11 +119,17 @@ exports.createVendor = async (req, res) => {
       });
     }
 
-    const vendor = await Vendor.create({
+    // ** CHANGED: use new Vendor() instead of Vendor.create()
+    const vendor = new Vendor({
       ...req.body,
       createdBy: userId,
     });
 
+    // ** CHANGED: save() triggers pre("save") → vendorCode generated
+    await vendor.save();
+
+    // ** OPTIONAL: fix logAction call signature (recommended)
+ 
     await logAction(
       userId,
       "CREATE",
@@ -132,7 +138,7 @@ exports.createVendor = async (req, res) => {
       null,
       vendor.toObject(),
       req
-    );
+    );;
 
     res.status(201).json({
       success: true,
@@ -148,6 +154,7 @@ exports.createVendor = async (req, res) => {
     });
   }
 };
+
 
 // Update vendor
 exports.updateVendor = async (req, res) => {

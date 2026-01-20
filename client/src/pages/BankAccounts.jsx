@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+
+import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+
+
 import {
   FaPlus,
   FaEdit,
@@ -49,6 +53,7 @@ const BankAccounts = () => {
 
       const response = await bankAccountAPI.getAll(params);
       setAccounts(response.data.data);
+      console.log(response.data.data);
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch accounts");
     } finally {
@@ -136,23 +141,16 @@ const BankAccounts = () => {
     });
     setShowModal(true);
   };
-
-  const handleDelete = async (accountId) => {
-    if (!window.confirm("Are you sure you want to deactivate this account?")) {
-      return;
-    }
-
-    try {
-      await bankAccountAPI.delete(accountId);
-      toast.success("Account deactivated successfully");
-      fetchAccounts();
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to deactivate account"
-      );
-    }
-  };
-
+  
+  const handleDelete = (id) => {
+  deleteWithConfirm({
+    title: "Are you sure?",
+    text: "This bank account will be deactivated!",
+    confirmText: "Deactivate",
+    apiCall: () => bankAccountAPI.delete(id),
+    onSuccess: fetchAccounts,
+  });
+};
   const formatCurrency = (amount, currency = "INR") => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -187,7 +185,7 @@ const BankAccounts = () => {
           <h1>Bank Accounts</h1>
           <p>Manage bank accounts and cash balances</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button className="add-account" onClick={() => setShowModal(true)}>
           <FaPlus /> Add Account
         </button>
       </div>
@@ -232,13 +230,13 @@ const BankAccounts = () => {
 
       <div className="accounts-grid">
         {accounts.map((account) => (
-          <div key={account._id} className="account-card">
+          <div key={account._id} className={`account-card ${!account.isActive && "disabled"}`}>
             <div className="account-header">
               <div className="account-icon">
                 {getAccountTypeIcon(account.accountType)}
               </div>
               <div className="account-info">
-                <h3>{account.accountName}</h3>
+                <h3 title={account.accountName}>{account.accountName}</h3>
                 <span className="entity-badge">{account.entity?.name}</span>
               </div>
               <span className={`type-badge ${account.accountType}`}>
@@ -497,7 +495,7 @@ const BankAccounts = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="bank-account-create">
                   {editingAccount ? "Update Account" : "Create Account"}
                 </button>
               </div>

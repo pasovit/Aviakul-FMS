@@ -18,7 +18,19 @@
   margin: 0;
   color: var(--text-secondary);
 }
+.add-account,.bank-account-create{
+  background: #1c3787;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.add-account:hover,.bank-account-create:hover{
+  transform: scale(1.05);
 
+}
 .filters-bar {
   display: flex;
   gap: 1rem;
@@ -69,7 +81,14 @@
   border-radius: 12px;
   padding: 1.5rem;
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
+.disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 
 .account-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -99,12 +118,16 @@
 
 .account-info {
   flex: 1;
+  min-width: 0;
 }
 
 .account-info h3 {
   margin: 0 0 0.25rem 0;
   font-size: 1.1rem;
   color: var(--text-primary);
+    white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .entity-badge {
@@ -202,6 +225,8 @@
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
+  margin-top: auto;
+
 }
 
 .btn-icon {
@@ -210,13 +235,13 @@
   padding: 0.5rem;
   border-radius: 6px;
   cursor: pointer;
-  color: var(--text-secondary);
+  color:#1c3787;
   font-size: 1rem;
   transition: all 0.2s ease;
 }
 
 .btn-icon:hover {
-  background: var(--primary-color);
+  background: #1c3787;
   color: white;
   border-color: var(--primary-color);
 }

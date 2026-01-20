@@ -25,7 +25,7 @@ const invoiceLineItemSchema = new mongoose.Schema(
     },
     amount: {
       type: Number,
-      required: true,
+      // required: true,
     },
     taxRate: {
       type: Number,
@@ -39,7 +39,7 @@ const invoiceLineItemSchema = new mongoose.Schema(
     },
     totalAmount: {
       type: Number,
-      required: true,
+      // required: true,
     },
   },
   { _id: true }
@@ -100,7 +100,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     subtotal: {
       type: Number,
-      required: true,
+      // required: true,
       min: [0, "Subtotal cannot be negative"],
     },
     cgst: {
@@ -133,7 +133,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     totalAmount: {
       type: Number,
-      required: true,
+      // required: true,
       min: [0, "Total amount cannot be negative"],
     },
     amountPaid: {
@@ -143,7 +143,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     amountDue: {
       type: Number,
-      required: true,
+      // required: true,
     },
     status: {
       type: String,

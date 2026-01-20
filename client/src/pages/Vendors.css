@@ -14,7 +14,19 @@
   font-size: 28px;
   color: #2c3e50;
 }
+.add-vendor,.vendor-search,.vendor-create{
+  background: #1c3787;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.add-vendor:hover,.vendor-search:hover,.vendor-create:hover{
+  transform: scale(1.05);
 
+}
 .filters-section {
   background: white;
   padding: 20px;
@@ -27,12 +39,14 @@
   display: flex;
   gap: 12px;
   margin-bottom: 16px;
+  align-items: center;
 }
 
 .search-input-wrapper {
-  flex: 1;
+  width: 300px;
   position: relative;
 }
+
 
 .search-icon {
   position: absolute;
@@ -49,7 +63,6 @@
   border-radius: 6px;
   font-size: 14px;
 }
-
 .filter-controls {
   display: flex;
   gap: 12px;
@@ -160,25 +173,30 @@
   gap: 8px;
 }
 
+
 .btn-icon {
-  padding: 8px;
-  background: transparent;
-  border: none;
+  background: none;
+  border: 1px solid var(--border-color);
+  padding: 0.5rem;
+  border-radius: 6px;
   cursor: pointer;
-  color: #666;
-  border-radius: 4px;
-  transition: all 0.2s;
+  color:#1c3787;
+  font-size: 1rem;
+  transition: all 0.2s ease;
 }
 
 .btn-icon:hover {
-  background: #f0f0f0;
-  color: #007bff;
+  background: #1c3787;
+  color: white;
+  border-color: var(--primary-color);
 }
 
-.btn-icon.btn-danger:hover {
-  background: #fee;
-  color: #dc3545;
+.btn-icon.danger:hover {
+  background: #d32f2f;
+  color: white;
+  border-color: #d32f2f;
 }
+
 
 .vendor-details {
   margin-bottom: 16px;
@@ -418,7 +436,14 @@
     align-items: flex-start;
     gap: 12px;
   }
+ .search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
+  .search-input-wrapper {
+    width: 100%;
+  }
   .filter-controls {
     flex-direction: column;
   }

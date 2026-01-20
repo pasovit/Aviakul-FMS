@@ -15,5 +15,7 @@ router.post("/", paymentController.createPayment);
 router.put("/:id", paymentController.updatePayment);
 router.delete("/:id", paymentController.deletePayment);
 router.post("/:id/allocate", paymentController.allocatePayment);
+router.get("/export/csv", paymentController.exportPaymentsCSV);
+
 
 module.exports = router;

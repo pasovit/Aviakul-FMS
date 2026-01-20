@@ -5,6 +5,8 @@ const { logAction } = require("../middleware/audit");
 const xlsx = require("xlsx");
 const fs = require("fs");
 const path = require("path");
+const { Parser } = require("json2csv");
+
 
 // @desc    Get all transactions with filters
 // @route   GET /api/transactions
@@ -603,6 +605,60 @@ exports.exportToExcel = async (req, res, next) => {
     next(error);
   }
 };
+
+// GET /transactions/export/csv
+exports.exportCSV = async (req, res) => {
+  try {
+    // 🔹 Fetch data
+    const transactions = await Transaction.find({})
+      .populate("entity", "name")
+      .populate("bankAccount", "accountName")
+      .lean();
+
+    // 🔹 Validate data
+    if (!transactions || transactions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No transactions found to export",
+      });
+    }
+
+    // 🔹 Define CSV fields
+    const fields = [
+      { label: "Date", value: "transactionDate" },
+      { label: "Entity", value: "entity.name" },
+      { label: "Type", value: "type" },
+      { label: "Category", value: "category" },
+      { label: "Party Name", value: "partyName" },
+      { label: "Amount", value: "amount" },
+      { label: "Total Amount", value: "totalAmount" },
+      { label: "Status", value: "status" },
+    ];
+
+    // 🔹 Convert to CSV
+    const parser = new Parser({ fields });
+    const csv = parser.parse(transactions);
+
+    // 🔹 Send file
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=transactions_${Date.now()}.csv`
+    );
+
+    return res.status(200).send(csv);
+
+  } catch (error) {
+    console.error("CSV Export Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to export transactions",
+    });
+  }
+};
+
+
 
 // @desc    Import transactions from Excel - Preview
 // @route   POST /api/transactions/import/preview

@@ -5,6 +5,8 @@ const Vendor = require("../models/Vendor");
 const BankAccount = require("../models/BankAccount");
 const { logAction } = require("../middleware/audit");
 const mongoose = require("mongoose");
+const { Parser } = require("json2csv");
+
 
 // Get all payments with filters
 exports.getPayments = async (req, res) => {
@@ -527,6 +529,97 @@ exports.getPaymentSummary = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch payment summary",
+      error: error.message,
+    });
+  }
+};
+
+
+exports.exportPaymentsCSV = async (req, res) => {
+  try {
+    const {
+      entity,
+      paymentType,
+      status,
+      paymentMethod,
+      search,
+    } = req.query;
+
+    const userRole = req.user.role;
+    const userEntity = req.user.entity;
+
+    let query = {};
+
+    // Entity restriction
+    if (userRole === "employee" || userRole === "observer") {
+      query.entity = userEntity;
+    } else if (entity) {
+      query.entity = entity;
+    }
+
+    if (paymentType) query.paymentType = paymentType;
+    if (status) query.status = status;
+    if (paymentMethod) query.paymentMethod = paymentMethod;
+
+    if (search) {
+      query.$or = [
+        { paymentNumber: { $regex: search, $options: "i" } },
+        { partyName: { $regex: search, $options: "i" } },
+        { referenceNumber: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const payments = await Payment.find(query)
+      .populate("entity", "name")
+      .populate("bankAccount", "accountName accountNumber")
+      .sort({ paymentDate: -1 });
+
+    const data = payments.map((p) => ({
+      Payment_No: p.paymentNumber,
+      Type:
+        p.paymentType === "payment_received"
+          ? "Received"
+          : "Made",
+      Entity: p.entity?.name || "",
+      Party: p.partyName || "",
+      Date: p.paymentDate?.toISOString().split("T")[0],
+      Amount: p.amount,
+      Allocated:
+        p.allocations?.reduce(
+          (sum, a) => sum + a.allocatedAmount,
+          0
+        ) || 0,
+      Unallocated:
+        p.amount -
+        (p.allocations?.reduce(
+          (sum, a) => sum + a.allocatedAmount,
+          0
+        ) || 0),
+      Method: p.paymentMethod,
+      Status: p.status,
+      Reference: p.referenceNumber || "",
+      Bank:
+        p.bankAccount?.accountName +
+          " - " +
+          p.bankAccount?.accountNumber || "",
+      Created_At: p.createdAt?.toISOString().split("T")[0],
+    }));
+
+    const parser = new Parser();
+    const csv = parser.parse(data);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=payments_${Date.now()}.csv`
+    );
+
+    return res.status(200).send(csv);
+  } catch (error) {
+    console.error("Payment CSV Export Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to export payments",
       error: error.message,
     });
   }

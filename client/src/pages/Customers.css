@@ -14,7 +14,19 @@
   font-size: 28px;
   color: #2c3e50;
 }
+.add-customer,.customer-search,.customer-create{
+  background: #1c3787;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.add-customer:hover,.customer-search:hover,.customer-create:hover{
+  transform: scale(1.05);
 
+}
 .filters-section {
   background: white;
   padding: 20px;
@@ -160,25 +172,30 @@
   gap: 8px;
 }
 
+
 .btn-icon {
-  padding: 8px;
-  background: transparent;
-  border: none;
+  background: none;
+  border: 1px solid var(--border-color);
+  padding: 0.5rem;
+  border-radius: 6px;
   cursor: pointer;
-  color: #666;
-  border-radius: 4px;
-  transition: all 0.2s;
+  color:#1c3787;
+  font-size: 1rem;
+  transition: all 0.2s ease;
 }
 
 .btn-icon:hover {
-  background: #f0f0f0;
-  color: #007bff;
+  background: #1c3787;
+  color: white;
+  border-color: var(--primary-color);
 }
 
-.btn-icon.btn-danger:hover {
-  background: #fee;
-  color: #dc3545;
+.btn-icon.danger:hover {
+  background: #d32f2f;
+  color: white;
+  border-color: #d32f2f;
 }
+
 
 .customer-details {
   margin-bottom: 16px;

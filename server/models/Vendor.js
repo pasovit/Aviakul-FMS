@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 
+
 const vendorSchema = new mongoose.Schema(
   {
     entity: {
@@ -239,7 +240,7 @@ vendorSchema.virtual("availableCredit").get(function () {
 // Static method to generate vendor code
 vendorSchema.statics.generateVendorCode = async function (entityId) {
   const count = await this.countDocuments({ entity: entityId });
-  return `VEN${String(count + 1).padStart(5, "0")}`;
+  return `VEN-${String(count + 1).padStart(5, "0")}`;
 };
 
 // Static method to update outstanding balance
@@ -252,12 +253,28 @@ vendorSchema.statics.updateOutstanding = async function (vendorId, amount) {
 };
 
 // Pre-save hook to generate vendor code
-vendorSchema.pre("save", async function (next) {
-  if (this.isNew && !this.vendorCode) {
-    this.vendorCode = await this.constructor.generateVendorCode(this.entity);
+vendorSchema.pre("validate", async function (next) {
+  if (!this.isNew || this.vendorCode) return next();
+
+  const lastVendor = await this.constructor
+    .findOne({}, { vendorCode: 1 })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  let nextNumber = 1;
+
+  if (lastVendor?.vendorCode) {
+    const match = lastVendor.vendorCode.match(/VEN-(\d+)/);
+    if (match) {
+      nextNumber = parseInt(match[1], 10) + 1;
+    }
   }
+
+  this.vendorCode = `VEN${String(nextNumber).padStart(3, "0")}`;
+
   next();
 });
+
 
 // Ensure virtuals are included in JSON
 vendorSchema.set("toJSON", { virtuals: true });

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+
 import {
   FaPlus,
   FaEdit,
   FaTrash,
   FaSearch,
   FaFileInvoice,
+  FaFileExport,
 } from "react-icons/fa";
 import { invoiceAPI, customerAPI, vendorAPI, entityAPI } from "../services/api";
 import "./Invoices.css";
@@ -194,10 +197,10 @@ const Invoices = () => {
           name === "customer"
             ? value
             : name === "vendor"
-            ? value
-            : prev.invoiceType === "sales"
-            ? prev.customer
-            : prev.vendor;
+              ? value
+              : prev.invoiceType === "sales"
+                ? prev.customer
+                : prev.vendor;
         updated.dueDate = calculateDueDate(
           updated.invoiceDate,
           updated.invoiceType,
@@ -261,13 +264,24 @@ const Invoices = () => {
     e.preventDefault();
 
     try {
+      const payload = { ...formData };
+
+      //remove invalid ObjectIds
+      if (payload.invoiceType === "sales") {
+        delete payload.vendor;
+      }
+      if (payload.invoiceType === "purchase") {
+        delete payload.customer;
+      }
+
       if (editingInvoice) {
-        await invoiceAPI.update(editingInvoice._id, formData);
+        await invoiceAPI.update(editingInvoice._id, payload);
         toast.success("Invoice updated successfully");
       } else {
-        await invoiceAPI.create(formData);
+        await invoiceAPI.create(payload);
         toast.success("Invoice created successfully");
       }
+
       handleCloseModal();
       fetchInvoices();
     } catch (error) {
@@ -276,19 +290,39 @@ const Invoices = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to cancel this invoice?")) {
-      try {
-        await invoiceAPI.delete(id);
-        toast.success("Invoice cancelled successfully");
-        fetchInvoices();
-      } catch (error) {
-        toast.error(
-          error.response?.data?.message || "Failed to cancel invoice"
-        );
-        console.error(error);
-      }
+  const handleExport = async () => {
+    try {
+      const response = await invoiceAPI.exportCSV({
+        ...filters,
+        search: searchTerm,
+      });
+
+      const blob = new Blob([response.data], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `invoices_${new Date().toISOString().slice(0, 10)}.csv`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Invoice export started");
+    } catch (error) {
+      toast.error("Failed to export invoices");
+      console.error(error);
     }
+  };
+
+  const handleDelete = (id) => {
+    deleteWithConfirm({
+      title: "Are you sure?",
+      text: "This invoice will be cancelled!",
+      confirmText: "Cancel Invoice",
+      apiCall: () => invoiceAPI.delete(id),
+      onSuccess: fetchInvoices,
+    });
   };
 
   const formatCurrency = (amount) => {
@@ -317,9 +351,16 @@ const Invoices = () => {
     <div className="invoices-page">
       <div className="page-header">
         <h1>Invoices</h1>
-        <button className="btn-primary" onClick={() => handleOpenModal()}>
-          <FaPlus /> Create Invoice
-        </button>
+
+        <div className="page-actions">
+          <button className="invoice-export-button" onClick={handleExport}>
+            <FaFileExport /> Export CSV
+          </button>
+
+          <button className="add-invoice" onClick={() => handleOpenModal()}>
+            <FaPlus /> Create Invoice
+          </button>
+        </div>
       </div>
 
       <div className="filters-section">
@@ -334,65 +375,68 @@ const Invoices = () => {
               className="search-input"
             />
           </div>
-          <button type="submit" className="btn-secondary">
+          {/* <button type="submit" className="invoice-search">
             Search
-          </button>
+          </button> */}
+          <div className="filter-controls">
+            <select
+              value={filters.entity}
+              onChange={(e) =>
+                setFilters({ ...filters, entity: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Entities</option>
+              {entities.map((entity) => (
+                <option key={entity._id} value={entity._id}>
+                  {entity.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filters.invoiceType}
+              onChange={(e) =>
+                setFilters({ ...filters, invoiceType: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Types</option>
+              <option value="sales">Sales</option>
+              <option value="purchase">Purchase</option>
+            </select>
+
+            <select
+              value={filters.status}
+              onChange={(e) =>
+                setFilters({ ...filters, status: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Status</option>
+              {statusOptions.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filters.agingBucket}
+              onChange={(e) =>
+                setFilters({ ...filters, agingBucket: e.target.value })
+              }
+              className="filter-select"
+            >
+              <option value="">All Aging</option>
+              {agingBuckets.map((bucket) => (
+                <option key={bucket.value} value={bucket.value}>
+                  {bucket.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </form>
-
-        <div className="filter-controls">
-          <select
-            value={filters.entity}
-            onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
-            className="filter-select"
-          >
-            <option value="">All Entities</option>
-            {entities.map((entity) => (
-              <option key={entity._id} value={entity._id}>
-                {entity.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.invoiceType}
-            onChange={(e) =>
-              setFilters({ ...filters, invoiceType: e.target.value })
-            }
-            className="filter-select"
-          >
-            <option value="">All Types</option>
-            <option value="sales">Sales</option>
-            <option value="purchase">Purchase</option>
-          </select>
-
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="filter-select"
-          >
-            <option value="">All Status</option>
-            {statusOptions.map((status) => (
-              <option key={status.value} value={status.value}>
-                {status.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.agingBucket}
-            onChange={(e) =>
-              setFilters({ ...filters, agingBucket: e.target.value })
-            }
-            className="filter-select"
-          >
-            <option value="">All Aging</option>
-            {agingBuckets.map((bucket) => (
-              <option key={bucket.value} value={bucket.value}>
-                {bucket.label}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       {loading ? (
@@ -418,8 +462,11 @@ const Invoices = () => {
             <tbody>
               {invoices.map((invoice) => (
                 <tr key={invoice._id}>
-                  <td className="invoice-number">
-                    <FaFileInvoice /> {invoice.invoiceNumber}
+                  <td>
+                    <span  className="invoice-number">
+                       <FaFileInvoice /> {invoice.invoiceNumber}
+                    </span>
+                   
                   </td>
                   <td>
                     <span className={`type-badge ${invoice.invoiceType}`}>
@@ -462,9 +509,10 @@ const Invoices = () => {
                         : invoice.agingBucket}
                     </span>
                   </td>
-                  <td className="actions-cell">
-                    {invoice.status !== "paid" &&
-                      invoice.status !== "cancelled" && (
+                  <td>
+                    <div className="invoice-actions-cell">
+                      {invoice.status !== "paid" &&
+                      invoice.status !== "cancelled" ? (
                         <>
                           <button
                             onClick={() => handleOpenModal(invoice)}
@@ -473,15 +521,19 @@ const Invoices = () => {
                           >
                             <FaEdit />
                           </button>
+
                           <button
                             onClick={() => handleDelete(invoice._id)}
-                            className="btn-icon btn-danger"
+                            className="btn-icon danger"
                             title="Cancel"
                           >
                             <FaTrash />
                           </button>
                         </>
+                      ) : (
+                        <span className="no-actions">—</span>
                       )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -717,7 +769,7 @@ const Invoices = () => {
                                 <button
                                   type="button"
                                   onClick={() => removeLineItem(index)}
-                                  className="btn-icon btn-danger"
+                                  className="btn-icon danger"
                                   title="Remove"
                                 >
                                   <FaTrash />
@@ -845,7 +897,7 @@ const Invoices = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="invoice-create">
                   {editingInvoice ? "Update" : "Create"} Invoice
                 </button>
               </div>

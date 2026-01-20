@@ -52,7 +52,7 @@ exports.getBankAccounts = async (req, res, next) => {
       .populate("createdBy", "firstName lastName")
       .populate("updatedBy", "firstName lastName")
       .sort({ accountName: 1 });
-
+    
     res.status(200).json({
       success: true,
       count: bankAccounts.length,
@@ -251,7 +251,7 @@ exports.deleteBankAccount = async (req, res, next) => {
       changes: { before: bankAccount },
       req,
     });
-
+    
     res.status(200).json({
       success: true,
       message: "Bank account deactivated successfully",

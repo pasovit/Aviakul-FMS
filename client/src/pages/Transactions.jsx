@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+import { deleteWithConfirm } from "../utils/deleteWithConfirm";
 import {
   FaPlus,
   FaEdit,
   FaTrash,
-  FaFileExcel,
+  FaFileExcel,  
   FaUpload,
   FaSearch,
   FaFilter,
 } from "react-icons/fa";
 import { transactionAPI, bankAccountAPI, entityAPI } from "../services/api";
 import "./Transactions.css";
+import { FiEdit } from "react-icons/fi";
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -52,6 +54,7 @@ const Transactions = () => {
     tdsSection: "",
     tdsRate: 0,
     tdsAmount: 0,
+    totalAmount: 10,
     paymentMethod: "neft",
     referenceNumber: "",
     invoiceNumber: "",
@@ -133,6 +136,7 @@ const Transactions = () => {
       tdsSection: "",
       tdsRate: 0,
       tdsAmount: 0,
+      totalAmount: 0,
       paymentMethod: "neft",
       referenceNumber: "",
       invoiceNumber: "",
@@ -142,6 +146,40 @@ const Transactions = () => {
     });
     setEditingTransaction(null);
   };
+
+  // ** ADDED: handle edit action
+const handleEdit = (transaction) => {
+  setEditingTransaction(transaction);
+
+  setFormData({
+    entity: transaction.entity?._id || "",
+    bankAccount: transaction.bankAccount?._id || "",
+    transactionDate: transaction.transactionDate.split("T")[0],
+    type: transaction.type,
+    category: transaction.category,
+    partyName: transaction.partyName || "",
+    partyPAN: transaction.partyPAN || "",
+    partyGSTIN: transaction.partyGSTIN || "",
+    amount: transaction.amount,
+    cgst: transaction.gstDetails?.cgst || 0,
+    sgst: transaction.gstDetails?.sgst || 0,
+    igst: transaction.gstDetails?.igst || 0,
+    tdsSection: transaction.tdsDetails?.section || "",
+    tdsRate: transaction.tdsDetails?.rate || 0,
+    tdsAmount: transaction.tdsDetails?.amount || 0,
+    totalAmount: transaction.totalAmount,
+    paymentMethod: transaction.paymentMethod,
+    referenceNumber: transaction.referenceNumber || "",
+    invoiceNumber: transaction.invoiceNumber || "",
+    invoiceDate: transaction.invoiceDate
+      ? transaction.invoiceDate.split("T")[0]
+      : "",
+    status: transaction.status,
+    notes: transaction.notes || "",
+  });
+
+  setShowModal(true);
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -166,6 +204,7 @@ const Transactions = () => {
         await transactionAPI.update(editingTransaction._id, submitData);
         toast.success("Transaction updated successfully");
       } else {
+        console.log(submitData);
         await transactionAPI.create(submitData);
         toast.success("Transaction created successfully");
       }
@@ -179,22 +218,17 @@ const Transactions = () => {
       );
     }
   };
+const handleDelete = (id) => {
+  deleteWithConfirm({
+    title: "Are you sure?",
+    text: "This transaction will be permanently deleted!",
+    confirmText: "Delete",
+    apiCall: () => transactionAPI.delete(id),
+    onSuccess: fetchTransactions,
+  });
+};
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this transaction?")) {
-      return;
-    }
 
-    try {
-      await transactionAPI.delete(id);
-      toast.success("Transaction deleted successfully");
-      fetchTransactions();
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to delete transaction"
-      );
-    }
-  };
 
   const handleBulkUpdate = async (status) => {
     if (selectedIds.length === 0) {
@@ -232,6 +266,29 @@ const Transactions = () => {
       toast.error("Failed to export transactions");
     }
   };
+
+  const handleExportCSV = async () => {
+   try {
+    const response = await transactionAPI.exportAll({
+      responseType: "blob",
+    });
+
+    const blob = new Blob([response.data], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `transactions_${Date.now()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    toast.success("CSV exported successfully");
+  } catch (error) {
+    toast.error("Failed to export CSV");
+  }
+};
+
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -276,16 +333,19 @@ const Transactions = () => {
         </div>
         <div className="header-actions">
           <button
-            className="btn btn-secondary"
+            className="transaction-show-filters"
             onClick={() => setShowFilters(!showFilters)}
           >
             <FaFilter /> Filters
           </button>
-          <button className="btn btn-secondary" onClick={handleExport}>
-            <FaFileExcel /> Export
+          <button className="transaction-export" onClick={handleExportCSV}>
+            <FaFileExcel /> Export.CSV
+          </button>
+           <button className="transaction-export" onClick={handleExport}>
+            <FaFileExcel /> Export.xlsx
           </button>
           <button
-            className="btn btn-primary"
+            className="add-transaction"
             onClick={() => setShowModal(true)}
           >
             <FaPlus /> Add Transaction
@@ -443,8 +503,12 @@ const Transactions = () => {
                   </span>
                 </td>
                 <td className="actions-cell">
+                  <button className="btn-icon"  onClick={() => handleEdit(txn)}>
+                    <FiEdit />
+                  </button>
                   <button
-                    className="btn-icon"
+                    className="btn-icon danger"
+                    title="Delete"
                     onClick={() => handleDelete(txn._id)}
                   >
                     <FaTrash />
@@ -654,7 +718,7 @@ const Transactions = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="transaction-create">
                   {editingTransaction ? "Update" : "Create"}
                 </button>
               </div>
