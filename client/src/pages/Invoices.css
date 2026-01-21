@@ -158,16 +158,16 @@
   color: #0c5460;
 }
 
-.amount {
-  text-align: right;
+.invoice-amount {
+  text-align: left;
   font-weight: 500;
 }
 
-.amount.paid {
+.invoice-amount.paid {
   color: #28a745;
 }
 
-.amount.due {
+.invoice-amount.due {
   color: #dc3545;
 }
 

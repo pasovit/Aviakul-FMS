@@ -50,7 +50,7 @@ const Invoices = () => {
   });
 
   const statusOptions = [
-    { value: "draft", label: "Draft", color: "#6c757d" },
+    { value: "draft", label: "Draft", color: "#67849d" },
     { value: "pending", label: "Pending", color: "#ffc107" },
     { value: "partially_paid", label: "Partially Paid", color: "#17a2b8" },
     { value: "paid", label: "Paid", color: "#28a745" },
@@ -495,13 +495,13 @@ const Invoices = () => {
                   </td>
                   <td>{formatDate(invoice.invoiceDate)}</td>
                   <td>{formatDate(invoice.dueDate)}</td>
-                  <td className="amount">
+                  <td className="invoice-amount">
                     {formatCurrency(invoice.totalAmount)}
                   </td>
-                  <td className="amount paid">
+                  <td className="invoice-amount paid">
                     {formatCurrency(invoice.amountPaid)}
                   </td>
-                  <td className="amount due">
+                  <td className="invoice-amount due">
                     {formatCurrency(invoice.amountDue)}
                   </td>
                   <td>
@@ -533,11 +533,13 @@ const Invoices = () => {
                             onClick={() => handleOpenModal(invoice)}
                             className="btn-icon"
                             disabled={isSubmitting}
+                            title="Edit"
                           >
                             <FaEdit />
                           </button>
 
                           <button
+                            title="Delete"
                             onClick={() => handleDelete(invoice._id)}
                             className="btn-icon danger"
                             disabled={isSubmitting}

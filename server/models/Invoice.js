@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const Counter = require("./Counter");
 
 const invoiceLineItemSchema = new mongoose.Schema(
   {
@@ -303,26 +304,47 @@ invoiceSchema.pre("save", function (next) {
 });
 
 // Static method to generate invoice number
-invoiceSchema.statics.generateInvoiceNumber = async function (
-  entityId,
-  invoiceType,
-  invoiceDate
-) {
-  const year = invoiceDate.getFullYear();
-  const month = String(invoiceDate.getMonth() + 1).padStart(2, "0");
-  const prefix = invoiceType === "sales" ? "SI" : "PI";
+// invoiceSchema.statics.generateInvoiceNumber = async function (
+//   entityId,
+//   invoiceType,
+//   invoiceDate
+// ) {
+//   const year = invoiceDate.getFullYear();
+//   const month = String(invoiceDate.getMonth() + 1).padStart(2, "0");
+//   const prefix = invoiceType === "sales" ? "SI" : "PI";
 
-  const count = await this.countDocuments({
-    entity: entityId,
-    invoiceType: invoiceType,
-    invoiceDate: {
-      $gte: new Date(year, invoiceDate.getMonth(), 1),
-      $lt: new Date(year, invoiceDate.getMonth() + 1, 1),
+//   const count = await this.countDocuments({
+//     entity: entityId,
+//     invoiceType: invoiceType,
+//     invoiceDate: {
+//       $gte: new Date(year, invoiceDate.getMonth(), 1),
+//       $lt: new Date(year, invoiceDate.getMonth() + 1, 1),
+//     },
+//   });
+
+//   return `${prefix}${year}${month}${String(count + 1).padStart(4, "0")}`;
+// };
+
+invoiceSchema.pre("validate", async function (next) {
+  if (!this.isNew) return next();
+
+  const year = new Date(this.invoiceDate).getFullYear();
+  const prefix = this.invoiceType === "sales" ? "SI" : "PI";
+
+  const counter = await Counter.findOneAndUpdate(
+    {
+      name: `invoice_${this.invoiceType}`,
+      year,
     },
-  });
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-  return `${prefix}${year}${month}${String(count + 1).padStart(4, "0")}`;
-};
+  this.invoiceNumber = `${prefix}-${year}-${String(counter.seq).padStart(4, "0")}`;
+
+  next();
+});
+
 
 // Static method to update payment
 invoiceSchema.statics.recordPayment = async function (

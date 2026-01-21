@@ -144,17 +144,17 @@ exports.createInvoice = async (req, res) => {
       });
     }
 
-    // Generate invoice number if not provided
-    if (!req.body.invoiceNumber) {
-      const invoiceDate = req.body.invoiceDate
-        ? new Date(req.body.invoiceDate)
-        : new Date();
-      req.body.invoiceNumber = await Invoice.generateInvoiceNumber(
-        entity,
-        invoiceType,
-        invoiceDate
-      );
-    }
+    // // Generate invoice number if not provided
+    // if (!req.body.invoiceNumber) {
+    //   const invoiceDate = req.body.invoiceDate
+    //     ? new Date(req.body.invoiceDate)
+    //     : new Date();
+    //   req.body.invoiceNumber = await Invoice.generateInvoiceNumber(
+    //     entity,
+    //     invoiceType,
+    //     invoiceDate
+    //   );
+    // }
 
     // Create invoice
     const invoice = await Invoice.create({
