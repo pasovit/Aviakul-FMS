@@ -22,7 +22,7 @@ const transactionSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: {
-        values: ["income", "expense", "transfer"],
+        values: ["income", "expense", "loan","refund"],
         message: "{VALUE} is not a valid transaction type",
       },
       required: [true, "Transaction type is required"],
@@ -140,7 +140,7 @@ const transactionSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ["pending", "paid", "cancelled", "reconciled"],
+        values: ["pending", "paid", "cancelled", "reconciled","received"],
         message: "{VALUE} is not a valid status",
       },
       default: "pending",

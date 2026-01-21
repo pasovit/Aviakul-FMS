@@ -14,6 +14,19 @@ import { transactionAPI, bankAccountAPI, entityAPI } from "../services/api";
 import "./Transactions.css";
 import { FiEdit } from "react-icons/fi";
 
+const CATEGORY_OPTIONS = [
+  { label: "Salary", value: "salary" },
+  { label: "Sales", value: "sales"},
+  { label: "Consulting", value: "consulting" },
+
+  { label: "Rent", value: "rent"},
+  { label: "Utilities", value: "utilities" },
+  { label: "Travel", value: "travel" },
+  { label: "Purchase", value: "purchase"},
+
+
+];
+
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [entities, setEntities] = useState([]);
@@ -395,6 +408,7 @@ const Transactions = () => {
       paid: "badge-success",
       cancelled: "badge-danger",
       reconciled: "badge-info",
+      received: "badge-info",
     };
     return badges[status] || "badge-secondary";
   };
@@ -403,7 +417,8 @@ const Transactions = () => {
     const badges = {
       income: "badge-success",
       expense: "badge-danger",
-      transfer: "badge-info",
+      loan: "badge-danger",
+      refund: "badge-info",
     };
     return badges[type] || "badge-secondary";
   };
@@ -413,9 +428,9 @@ const Transactions = () => {
   }
 
   return (
-   
-
-   <div className={`transactions-page ${isSubmitting ? "transactions-disabled" : ""}`}>
+    <div
+      className={`transactions-page ${isSubmitting ? "transactions-disabled" : ""}`}
+    >
       <div className="page-header">
         <div>
           <h1>Transactions</h1>
@@ -583,7 +598,7 @@ const Transactions = () => {
                 <td>{formatDate(txn.transactionDate)}</td>
                 <td>{txn.entity?.name}</td>
                 <td>
-                 <span className={`badge ${getTypeBadge(txn.type)}`}>
+                  <span className={`badge ${getTypeBadge(txn.type)}`}>
                     {txn.type}
                   </span>
                 </td>
@@ -731,19 +746,27 @@ const Transactions = () => {
                   >
                     <option value="income">Income</option>
                     <option value="expense">Expense</option>
-                    <option value="transfer">Transfer</option>
+                    <option value="loan">Loan</option>
+                    <option value="refund">Refund</option>
                   </select>
                 </div>
 
                 <div className="form-group">
                   <label>Category *</label>
-                  <input
-                    type="text"
+                  <select
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
                     required
-                  />
+                  >
+                    <option value="">Select Category</option>
+
+                    {CATEGORY_OPTIONS.map((cat) => (
+                      <option key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group">
@@ -794,6 +817,7 @@ const Transactions = () => {
                   >
                     <option value="pending">Pending</option>
                     <option value="paid">Paid</option>
+                    <option value="received">Received</option>
                   </select>
                 </div>
 
@@ -886,8 +910,17 @@ const Transactions = () => {
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowImportModal(false)}>Cancel</button>
-              <button className="transaction-import" disabled={isSubmitting} onClick={handleConfirmImport}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowImportModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="transaction-import"
+                disabled={isSubmitting}
+                onClick={handleConfirmImport}
+              >
                 {isSubmitting ? "Importing..." : "Confirm Import"}
               </button>
             </div>
