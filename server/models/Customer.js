@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const Counter = require("./Counter");
 
 const customerSchema = new mongoose.Schema(
   {
@@ -250,11 +251,11 @@ customerSchema.virtual("availableCredit").get(function () {
   return Math.max(0, this.creditLimit - this.currentOutstanding);
 });
 
-// Static method to generate customer code
-customerSchema.statics.generateCustomerCode = async function (entityId) {
-  const count = await this.countDocuments({ entity: entityId });
-  return `CUS-${String(count + 1).padStart(5, "0")}`;
-};
+// // Static method to generate customer code
+// customerSchema.statics.generateCustomerCode = async function (entityId) {
+//   const count = await this.countDocuments({ entity: entityId });
+//   return `CUS-${String(count + 1).padStart(5, "0")}`;
+// };
 
 // Static method to update outstanding balance
 customerSchema.statics.updateOutstanding = async function (customerId, amount) {
@@ -267,14 +268,20 @@ customerSchema.statics.updateOutstanding = async function (customerId, amount) {
 
 // Pre-save hook to generate customer code
 customerSchema.pre("validate", async function (next) {
-  if (this.isNew && !this.customerCode) {
-    this.customerCode = await this.constructor.generateCustomerCode(
-      this.entity,
-    );
-  }
+  if (!this.isNew) return next();
 
-  // Ensure at least one default shipping address
-  if (this.isNew && this.shippingAddresses.length === 0) {
+  const year = new Date().getFullYear();
+
+  const counter = await Counter.findOneAndUpdate(
+    { name: "customer", year },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  this.customerCode = `CUS-${year}-${String(counter.seq).padStart(4, "0")}`;
+
+  // Auto create default shipping address
+  if (this.shippingAddresses.length === 0) {
     this.shippingAddresses.push({
       label: "Default",
       line1: this.billingAddress.line1,
@@ -289,6 +296,7 @@ customerSchema.pre("validate", async function (next) {
 
   next();
 });
+
 
 // Ensure virtuals are included in JSON
 customerSchema.set("toJSON", { virtuals: true });
