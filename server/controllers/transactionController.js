@@ -7,7 +7,6 @@ const fs = require("fs");
 const path = require("path");
 const { Parser } = require("json2csv");
 
-
 // @desc    Get all transactions with filters
 // @route   GET /api/transactions
 // @access  Private
@@ -182,7 +181,7 @@ exports.createTransaction = async (req, res, next) => {
     // For transfer transactions, verify transfer account
     if (req.body.type === "transfer" && req.body.transferToAccount) {
       const transferAccount = await BankAccount.findById(
-        req.body.transferToAccount
+        req.body.transferToAccount,
       );
       if (!transferAccount) {
         return res.status(404).json({
@@ -210,7 +209,7 @@ exports.createTransaction = async (req, res, next) => {
       // If transfer, update the receiving account too
       if (req.body.type === "transfer" && req.body.transferToAccount) {
         const transferAccount = await BankAccount.findById(
-          req.body.transferToAccount
+          req.body.transferToAccount,
         );
         await transferAccount.updateBalance(transaction.totalAmount);
       }
@@ -293,14 +292,14 @@ exports.updateTransaction = async (req, res, next) => {
     // Apply new balance effect if status is paid/reconciled
     if (newStatus === "paid" || newStatus === "reconciled") {
       const bankAccount = await BankAccount.findById(
-        transaction.bankAccount._id
+        transaction.bankAccount._id,
       );
       const amountChange = newType === "income" ? newAmount : -newAmount;
       await bankAccount.updateBalance(amountChange);
 
       if (newType === "transfer" && transaction.transferToAccount) {
         const transferAccount = await BankAccount.findById(
-          transaction.transferToAccount._id
+          transaction.transferToAccount._id,
         );
         await transferAccount.updateBalance(newAmount);
       }
@@ -353,7 +352,7 @@ exports.deleteTransaction = async (req, res, next) => {
 
       if (transaction.type === "transfer" && transaction.transferToAccount) {
         await transaction.transferToAccount.updateBalance(
-          -transaction.totalAmount
+          -transaction.totalAmount,
         );
       }
     }
@@ -412,7 +411,7 @@ exports.bulkUpdateStatus = async (req, res, next) => {
     for (const id of transactionIds) {
       try {
         const transaction = await Transaction.findById(id).populate(
-          "bankAccount transferToAccount"
+          "bankAccount transferToAccount",
         );
 
         if (!transaction) {
@@ -435,7 +434,7 @@ exports.bulkUpdateStatus = async (req, res, next) => {
             transaction.transferToAccount
           ) {
             await transaction.transferToAccount.updateBalance(
-              -transaction.totalAmount
+              -transaction.totalAmount,
             );
           }
         }
@@ -458,7 +457,7 @@ exports.bulkUpdateStatus = async (req, res, next) => {
             transaction.transferToAccount
           ) {
             await transaction.transferToAccount.updateBalance(
-              transaction.totalAmount
+              transaction.totalAmount,
             );
           }
         }
@@ -598,7 +597,7 @@ exports.exportToExcel = async (req, res, next) => {
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     res.send(buffer);
   } catch (error) {
@@ -609,13 +608,13 @@ exports.exportToExcel = async (req, res, next) => {
 // GET /transactions/export/csv
 exports.exportCSV = async (req, res) => {
   try {
-    // 🔹 Fetch data
+    // Fetch data
     const transactions = await Transaction.find({})
       .populate("entity", "name")
       .populate("bankAccount", "accountName")
       .lean();
 
-    // 🔹 Validate data
+    // Validate data
     if (!transactions || transactions.length === 0) {
       return res.status(404).json({
         success: false,
@@ -623,31 +622,33 @@ exports.exportCSV = async (req, res) => {
       });
     }
 
-    // 🔹 Define CSV fields
     const fields = [
       { label: "Date", value: "transactionDate" },
       { label: "Entity", value: "entity.name" },
+      { label: "Bank Account", value: "bankAccount.accountName" },
       { label: "Type", value: "type" },
       { label: "Category", value: "category" },
       { label: "Party Name", value: "partyName" },
       { label: "Amount", value: "amount" },
+      { label: "CGST", value: "gstDetails.cgst" },
+      { label: "SGST", value: "gstDetails.sgst" },
+      { label: "IGST", value: "gstDetails.igst" },
       { label: "Total Amount", value: "totalAmount" },
       { label: "Status", value: "status" },
     ];
 
-    // 🔹 Convert to CSV
+    // Convert to CSV
     const parser = new Parser({ fields });
     const csv = parser.parse(transactions);
 
-    // 🔹 Send file
+    // Send file
     res.setHeader("Content-Type", "text/csv");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=transactions_${Date.now()}.csv`
+      `attachment; filename=transactions_${Date.now()}.csv`,
     );
 
     return res.status(200).send(csv);
-
   } catch (error) {
     console.error("CSV Export Error:", error);
 
@@ -657,8 +658,6 @@ exports.exportCSV = async (req, res) => {
     });
   }
 };
-
-
 
 // @desc    Import transactions from Excel - Preview
 // @route   POST /api/transactions/import/preview
@@ -759,14 +758,14 @@ exports.importPreview = async (req, res, next) => {
 // @desc    Import transactions from Excel - Commit
 // @route   POST /api/transactions/import/commit
 // @access  Private (Admin+)
-exports.importCommit = async (req, res, next) => {
+exports.importCommit = async (req, res) => {
   try {
     const { tempFilePath } = req.body;
 
     if (!tempFilePath) {
       return res.status(400).json({
         success: false,
-        message: "Temp file path is required",
+        message: "Temp file path missing",
       });
     }
 
@@ -775,118 +774,96 @@ exports.importCommit = async (req, res, next) => {
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({
         success: false,
-        message: "Temp file not found. Please upload again.",
+        message: "File not found",
       });
     }
 
-    // Read Excel file
     const workbook = xlsx.readFile(filePath);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = xlsx.utils.sheet_to_json(worksheet);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = xlsx.utils.sheet_to_json(sheet);
 
-    const imported = [];
-    const errors = [];
+    const bulkInsert = [];
+    const skipped = [];
 
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const rowNum = i + 2;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
 
       try {
-        // Find entity by name
-        const entity = await Entity.findOne({ name: row["Entity"] });
-        if (!entity) {
-          errors.push({
-            row: rowNum,
-            error: `Entity '${row["Entity"]}' not found`,
-          });
-          continue;
-        }
+        if (!row["Entity"] || !row["Amount"]) continue;
 
-        // Find bank account
+        const entity = await Entity.findOne({ name: row["Entity"] });
+        if (!entity) throw new Error("Entity not found");
+
         const bankAccount = await BankAccount.findOne({
           entity: entity._id,
           accountName: row["Bank Account"],
         });
 
-        if (!bankAccount) {
-          errors.push({
-            row: rowNum,
-            error: `Bank account '${row["Bank Account"]}' not found for entity`,
+        if (!bankAccount) throw new Error("Bank account not found");
+
+        // DUPLICATE CHECK
+        const exists = await Transaction.findOne({
+          entity: entity._id,
+          bankAccount: bankAccount._id,
+          transactionDate: new Date(row["Date"]),
+          amount: Number(row["Amount"]),
+          type: row["Type"].toLowerCase(),
+        });
+
+        if (exists) {
+          skipped.push({
+            row: i + 2,
+            reason: "Duplicate transaction",
           });
           continue;
         }
 
-        // Create transaction
-        const transactionData = {
+        bulkInsert.push({
           entity: entity._id,
           bankAccount: bankAccount._id,
           transactionDate: new Date(row["Date"]),
           type: row["Type"].toLowerCase(),
           category: row["Category"],
           partyName: row["Party Name"],
-          partyPAN: row["Party PAN"] || undefined,
-          partyGSTIN: row["Party GSTIN"] || undefined,
-          amount: parseFloat(row["Amount"]),
+          amount: Number(row["Amount"]),
           gstDetails: {
-            cgst: parseFloat(row["CGST"] || 0),
-            sgst: parseFloat(row["SGST"] || 0),
-            igst: parseFloat(row["IGST"] || 0),
+            cgst: Number(row["CGST"] || 0),
+            sgst: Number(row["SGST"] || 0),
+            igst: Number(row["IGST"] || 0),
           },
-          tdsDetails: {
-            section: row["TDS Section"] || "",
-            rate: parseFloat(row["TDS Rate"] || 0),
-            amount: parseFloat(row["TDS Amount"] || 0),
-          },
-          paymentMethod: row["Payment Method"]
-            ? row["Payment Method"].toLowerCase()
-            : "neft",
-          referenceNumber: row["Reference Number"] || undefined,
-          invoiceNumber: row["Invoice Number"] || undefined,
-          invoiceDate: row["Invoice Date"]
-            ? new Date(row["Invoice Date"])
-            : undefined,
-          status: row["Status"] ? row["Status"].toLowerCase() : "pending",
-          notes: row["Notes"] || undefined,
+          totalAmount:
+            Number(row["Amount"]) +
+            Number(row["CGST"] || 0) +
+            Number(row["SGST"] || 0) +
+            Number(row["IGST"] || 0),
+          status: row["Status"] || "pending",
           createdBy: req.user._id,
-        };
-
-        const transaction = await Transaction.create(transactionData);
-
-        // Update bank balance if paid
-        if (transaction.status === "paid") {
-          const amountChange =
-            transaction.type === "income"
-              ? transaction.totalAmount
-              : -transaction.totalAmount;
-          await bankAccount.updateBalance(amountChange);
-        }
-
-        imported.push(transaction);
-      } catch (error) {
-        errors.push({ row: rowNum, error: error.message });
+        });
+      } catch (err) {
+        skipped.push({
+          row: i + 2,
+          reason: err.message,
+        });
       }
     }
 
-    // Clean up temp file
+    // 🚀 FAST INSERT
+    if (bulkInsert.length > 0) {
+      await Transaction.insertMany(bulkInsert, { ordered: false });
+    }
+
     fs.unlinkSync(filePath);
 
-    // Log action
-    await logAction({
-      user: req.user._id,
-      action: "bulk_import",
-      resource: "Transaction",
-      changes: { after: { imported: imported.length, errors: errors.length } },
-      req,
-    });
-
-    res.status(200).json({
+    return res.json({
       success: true,
-      message: `Imported ${imported.length} transactions`,
-      imported: imported.length,
-      errors: errors.length > 0 ? errors : undefined,
+      imported: bulkInsert.length,
+      skipped: skipped.length,
+      skippedRows: skipped,
     });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };

@@ -21,7 +21,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor - handle errors
@@ -35,7 +35,7 @@ api.interceptors.response.use(
       window.location.href = "/login";
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // Auth API calls
@@ -89,15 +89,15 @@ export const transactionAPI = {
       params,
       responseType: "blob",
     }),
+  exportAll: () =>
+    api.get("/transactions/export/csv", {
+      responseType: "blob",
+    }),
   importPreview: (formData) =>
     api.post("/transactions/import/preview", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
   importCommit: (data) => api.post("/transactions/import/commit", data),
-  exportAll: () =>
-    api.get("/transactions/export/csv", {
-      responseType: "blob",
-    }),
 };
 
 // Dashboard API calls

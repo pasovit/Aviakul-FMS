@@ -39,13 +39,18 @@ const customerSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
-      match: [/^[0-9]{10}$/, "Phone number must be 10 digits"],
+      match: [
+        /^\+?[1-9]\d{9,14}$/,
+        "Phone number must be a valid international number",
+      ],
     },
+
     alternatePhone: {
       type: String,
       trim: true,
-      match: [/^[0-9]{10}$/, "Alternate phone must be 10 digits"],
+      match: [/^\+?[1-9]\d{9,14}$/, "Alternate phone number must be valid"],
     },
+
     pan: {
       type: String,
       trim: true,
@@ -67,7 +72,7 @@ const customerSchema = new mongoose.Schema(
         validator: function (v) {
           if (!v) return true;
           return /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(
-            v
+            v,
           );
         },
         message: "Invalid GSTIN format",
@@ -211,7 +216,7 @@ const customerSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Compound indexes
@@ -256,7 +261,7 @@ customerSchema.statics.updateOutstanding = async function (customerId, amount) {
   return this.findByIdAndUpdate(
     customerId,
     { $inc: { currentOutstanding: amount } },
-    { new: true }
+    { new: true },
   );
 };
 
@@ -264,7 +269,7 @@ customerSchema.statics.updateOutstanding = async function (customerId, amount) {
 customerSchema.pre("validate", async function (next) {
   if (this.isNew && !this.customerCode) {
     this.customerCode = await this.constructor.generateCustomerCode(
-      this.entity
+      this.entity,
     );
   }
 

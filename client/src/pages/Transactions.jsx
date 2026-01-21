@@ -5,7 +5,7 @@ import {
   FaPlus,
   FaEdit,
   FaTrash,
-  FaFileExcel,  
+  FaFileExcel,
   FaUpload,
   FaSearch,
   FaFilter,
@@ -13,6 +13,19 @@ import {
 import { transactionAPI, bankAccountAPI, entityAPI } from "../services/api";
 import "./Transactions.css";
 import { FiEdit } from "react-icons/fi";
+
+const CATEGORY_OPTIONS = [
+  { label: "Salary", value: "salary" },
+  { label: "Sales", value: "sales"},
+  { label: "Consulting", value: "consulting" },
+
+  { label: "Rent", value: "rent"},
+  { label: "Utilities", value: "utilities" },
+  { label: "Travel", value: "travel" },
+  { label: "Purchase", value: "purchase"},
+
+
+];
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -24,6 +37,12 @@ const Transactions = () => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [pagination, setPagination] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [importPreview, setImportPreview] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [tempFile, setTempFile] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const [filters, setFilters] = useState({
     entity: "",
@@ -77,7 +96,7 @@ const Transactions = () => {
       setPagination(response.data.pagination);
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Failed to fetch transactions"
+        error.response?.data?.message || "Failed to fetch transactions",
       );
     } finally {
       setLoading(false);
@@ -148,63 +167,76 @@ const Transactions = () => {
   };
 
   // ** ADDED: handle edit action
-const handleEdit = (transaction) => {
-  setEditingTransaction(transaction);
+  const handleEdit = (transaction) => {
+    setEditingTransaction(transaction);
 
-  setFormData({
-    entity: transaction.entity?._id || "",
-    bankAccount: transaction.bankAccount?._id || "",
-    transactionDate: transaction.transactionDate.split("T")[0],
-    type: transaction.type,
-    category: transaction.category,
-    partyName: transaction.partyName || "",
-    partyPAN: transaction.partyPAN || "",
-    partyGSTIN: transaction.partyGSTIN || "",
-    amount: transaction.amount,
-    cgst: transaction.gstDetails?.cgst || 0,
-    sgst: transaction.gstDetails?.sgst || 0,
-    igst: transaction.gstDetails?.igst || 0,
-    tdsSection: transaction.tdsDetails?.section || "",
-    tdsRate: transaction.tdsDetails?.rate || 0,
-    tdsAmount: transaction.tdsDetails?.amount || 0,
-    totalAmount: transaction.totalAmount,
-    paymentMethod: transaction.paymentMethod,
-    referenceNumber: transaction.referenceNumber || "",
-    invoiceNumber: transaction.invoiceNumber || "",
-    invoiceDate: transaction.invoiceDate
-      ? transaction.invoiceDate.split("T")[0]
-      : "",
-    status: transaction.status,
-    notes: transaction.notes || "",
-  });
+    setFormData({
+      entity: transaction.entity?._id || "",
+      bankAccount: transaction.bankAccount?._id || "",
+      transactionDate: transaction.transactionDate.split("T")[0],
+      type: transaction.type,
+      category: transaction.category,
+      partyName: transaction.partyName || "",
+      partyPAN: transaction.partyPAN || "",
+      partyGSTIN: transaction.partyGSTIN || "",
+      amount: transaction.amount,
+      cgst: transaction.gstDetails?.cgst || 0,
+      sgst: transaction.gstDetails?.sgst || 0,
+      igst: transaction.gstDetails?.igst || 0,
+      tdsSection: transaction.tdsDetails?.section || "",
+      tdsRate: transaction.tdsDetails?.rate || 0,
+      tdsAmount: transaction.tdsDetails?.amount || 0,
+      totalAmount: transaction.totalAmount,
+      paymentMethod: transaction.paymentMethod,
+      referenceNumber: transaction.referenceNumber || "",
+      invoiceNumber: transaction.invoiceNumber || "",
+      invoiceDate: transaction.invoiceDate
+        ? transaction.invoiceDate.split("T")[0]
+        : "",
+      status: transaction.status,
+      notes: transaction.notes || "",
+    });
 
-  setShowModal(true);
-};
+    setShowModal(true);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+
     try {
+      setIsSubmitting(true);
+
+      const amount = Number(formData.amount) || 0;
+      const cgst = Number(formData.cgst) || 0;
+      const sgst = Number(formData.sgst) || 0;
+      const igst = Number(formData.igst) || 0;
+      const tds = Number(formData.tdsAmount) || 0;
+
+      const totalAmount = amount + cgst + sgst + igst - tds;
+
+      if (totalAmount <= 0) {
+        toast.error("Total amount must be greater than 0");
+        return;
+      }
+
       const submitData = {
         ...formData,
-        gstDetails: {
-          cgst: parseFloat(formData.cgst) || 0,
-          sgst: parseFloat(formData.sgst) || 0,
-          igst: parseFloat(formData.igst) || 0,
-        },
+        amount,
+        gstDetails: { cgst, sgst, igst },
         tdsDetails: {
           section: formData.tdsSection,
-          rate: parseFloat(formData.tdsRate) || 0,
-          amount: parseFloat(formData.tdsAmount) || 0,
+          rate: formData.tdsRate,
+          amount: tds,
         },
-        amount: parseFloat(formData.amount),
+        totalAmount,
       };
 
       if (editingTransaction) {
         await transactionAPI.update(editingTransaction._id, submitData);
         toast.success("Transaction updated successfully");
       } else {
-        console.log(submitData);
         await transactionAPI.create(submitData);
         toast.success("Transaction created successfully");
       }
@@ -214,21 +246,30 @@ const handleEdit = (transaction) => {
       fetchTransactions();
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Failed to save transaction"
+        error.response?.data?.message || "Failed to save transaction",
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
-const handleDelete = (id) => {
-  deleteWithConfirm({
-    title: "Are you sure?",
-    text: "This transaction will be permanently deleted!",
-    confirmText: "Delete",
-    apiCall: () => transactionAPI.delete(id),
-    onSuccess: fetchTransactions,
-  });
-};
 
+  const handleDelete = async (id) => {
+    if (isSubmitting) return;
 
+    setIsSubmitting(true);
+
+    try {
+      await deleteWithConfirm({
+        title: "Are you sure?",
+        text: "This transaction will be permanently deleted!",
+        confirmText: "Delete",
+        apiCall: () => transactionAPI.delete(id),
+        onSuccess: fetchTransactions,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleBulkUpdate = async (status) => {
     if (selectedIds.length === 0) {
@@ -246,49 +287,109 @@ const handleDelete = (id) => {
       fetchTransactions();
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Failed to update transactions"
+        error.response?.data?.message || "Failed to update transactions",
       );
     }
   };
 
-  const handleExport = async () => {
+  // const handleExport = async () => {
+  //   try {
+  //     const response = await transactionAPI.exportToExcel(filters);
+  //     const url = window.URL.createObjectURL(new Blob([response.data]));
+  //     const link = document.createElement("a");
+  //     link.href = url;
+  //     link.setAttribute("download", `transactions_${Date.now()}.xlsx`);
+  //     document.body.appendChild(link);
+  //     link.click();
+  //     link.remove();
+  //     toast.success("Transactions exported successfully");
+  //   } catch (error) {
+  //     toast.error("Failed to export transactions");
+  //   }
+  // };
+
+  const handleExportCSV = async () => {
+    if (isSubmitting) return;
+
     try {
-      const response = await transactionAPI.exportToExcel(filters);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      setIsSubmitting(true);
+
+      const response = await transactionAPI.exportAll({
+        responseType: "blob",
+      });
+
+      const blob = new Blob([response.data], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `transactions_${Date.now()}.xlsx`);
-      document.body.appendChild(link);
+      link.download = `transactions_${Date.now()}.csv`;
       link.click();
-      link.remove();
-      toast.success("Transactions exported successfully");
-    } catch (error) {
-      toast.error("Failed to export transactions");
+
+      toast.success("CSV exported successfully");
+    } catch {
+      toast.error("Failed to export CSV");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleExportCSV = async () => {
-   try {
-    const response = await transactionAPI.exportAll({
-      responseType: "blob",
-    });
+  //import
+  const handleImportCSV = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    const blob = new Blob([response.data], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
+    if (!file.name.endsWith(".csv") && !file.name.endsWith(".xlsx")) {
+      toast.error("Please upload a CSV or Excel file");
+      return;
+    }
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `transactions_${Date.now()}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const formData = new FormData();
+    formData.append("file", file);
 
-    toast.success("CSV exported successfully");
-  } catch (error) {
-    toast.error("Failed to export CSV");
-  }
-};
+    try {
+      setIsSubmitting(true);
 
+      // ✅ PREVIEW API
+      const res = await transactionAPI.importPreview(formData);
+
+      console.log(res);
+
+      setImportPreview(res.data.preview);
+      setImportErrors(res.data.errors || []);
+      setTempFile(res.data.tempFilePath);
+      setShowImportModal(true);
+
+      toast.success("File uploaded. Review before importing.");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to import file");
+    } finally {
+      setIsSubmitting(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (isSubmitting) return;
+    try {
+      setIsSubmitting(true);
+
+      const res = await transactionAPI.importCommit({
+        tempFilePath: tempFile,
+      });
+
+      toast.success(
+        `Imported: ${res.data.imported}, Skipped: ${res.data.skipped}`,
+      );
+
+      setShowImportModal(false);
+      fetchTransactions();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Import failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -307,6 +408,7 @@ const handleDelete = (id) => {
       paid: "badge-success",
       cancelled: "badge-danger",
       reconciled: "badge-info",
+      received: "badge-info",
     };
     return badges[status] || "badge-secondary";
   };
@@ -315,7 +417,8 @@ const handleDelete = (id) => {
     const badges = {
       income: "badge-success",
       expense: "badge-danger",
-      transfer: "badge-info",
+      loan: "badge-danger",
+      refund: "badge-info",
     };
     return badges[type] || "badge-secondary";
   };
@@ -325,7 +428,9 @@ const handleDelete = (id) => {
   }
 
   return (
-    <div className="transactions-page">
+    <div
+      className={`transactions-page ${isSubmitting ? "transactions-disabled" : ""}`}
+    >
       <div className="page-header">
         <div>
           <h1>Transactions</h1>
@@ -338,12 +443,23 @@ const handleDelete = (id) => {
           >
             <FaFilter /> Filters
           </button>
+          <label className="transaction-import">
+            <FaUpload /> Import CSV
+            <input
+              type="file"
+              accept=".csv"
+              hidden
+              onChange={handleImportCSV}
+            />
+          </label>
+
           <button className="transaction-export" onClick={handleExportCSV}>
-            <FaFileExcel /> Export.CSV
+            <FaFileExcel /> Export CSV
           </button>
-           <button className="transaction-export" onClick={handleExport}>
+          {/* 
+          <button className="transaction-export" onClick={handleExport}>
             <FaFileExcel /> Export.xlsx
-          </button>
+          </button> */}
           <button
             className="add-transaction"
             onClick={() => setShowModal(true)}
@@ -473,7 +589,7 @@ const handleDelete = (id) => {
                         setSelectedIds([...selectedIds, txn._id]);
                       } else {
                         setSelectedIds(
-                          selectedIds.filter((id) => id !== txn._id)
+                          selectedIds.filter((id) => id !== txn._id),
                         );
                       }
                     }}
@@ -503,7 +619,7 @@ const handleDelete = (id) => {
                   </span>
                 </td>
                 <td className="actions-cell">
-                  <button className="btn-icon"  onClick={() => handleEdit(txn)}>
+                  <button className="btn-icon" onClick={() => handleEdit(txn)}>
                     <FiEdit />
                   </button>
                   <button
@@ -630,19 +746,27 @@ const handleDelete = (id) => {
                   >
                     <option value="income">Income</option>
                     <option value="expense">Expense</option>
-                    <option value="transfer">Transfer</option>
+                    <option value="loan">Loan</option>
+                    <option value="refund">Refund</option>
                   </select>
                 </div>
 
                 <div className="form-group">
                   <label>Category *</label>
-                  <input
-                    type="text"
+                  <select
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
                     required
-                  />
+                  >
+                    <option value="">Select Category</option>
+
+                    {CATEGORY_OPTIONS.map((cat) => (
+                      <option key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group">
@@ -693,6 +817,7 @@ const handleDelete = (id) => {
                   >
                     <option value="pending">Pending</option>
                     <option value="paid">Paid</option>
+                    <option value="received">Received</option>
                   </select>
                 </div>
 
@@ -718,11 +843,87 @@ const handleDelete = (id) => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="transaction-create">
-                  {editingTransaction ? "Update" : "Create"}
+                <button
+                  type="submit"
+                  className="transaction-create"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Processing..."
+                    : editingTransaction
+                      ? "Update"
+                      : "Create"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showImportModal && (
+        <div className="transaction-modal-overlay">
+          <div className="modal-content large">
+            <div className="modal-header">
+              <h3>Import Preview</h3>
+              <button onClick={() => setShowImportModal(false)}>×</button>
+            </div>
+
+            <div className="modal-body">
+              <p>
+                <b>Valid Rows:</b> {importPreview.length}
+              </p>
+              <p>
+                <b>Errors:</b> {importErrors.length}
+              </p>
+
+              {importErrors.length > 0 && (
+                <div className="error-box">
+                  {importErrors.map((e, i) => (
+                    <div key={i}>
+                      Row {e.row}: {e.error}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <table className="preview-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Entity</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Party</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.map((row, i) => (
+                    <tr key={i}>
+                      <td>{row.Date}</td>
+                      <td>{row.Entity}</td>
+                      <td>{row.Type}</td>
+                      <td>{row.Amount}</td>
+                      <td>{row["Party Name"]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowImportModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="transaction-import"
+                disabled={isSubmitting}
+                onClick={handleConfirmImport}
+              >
+                {isSubmitting ? "Importing..." : "Confirm Import"}
+              </button>
+            </div>
           </div>
         </div>
       )}

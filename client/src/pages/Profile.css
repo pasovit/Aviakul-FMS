@@ -29,7 +29,7 @@
   border: none;
   background: none;
   color: var(--light-text);
-  font-weight: 500;
+  font-weight: 700;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
@@ -37,12 +37,12 @@
 }
 
 .tab-btn:hover {
-  color: var(--primary-color);
+  color:#1c3787;
 }
 
 .tab-btn.active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
+  color:#1c3787;
+  border-bottom-color: #1c3787;
 }
 
 .profile-content {
@@ -56,6 +56,20 @@
   margin-bottom: 1.5rem;
 }
 
+.Change-password,.two-factor-auth{
+  background: #1c3787;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.Change-password:hover,.two-factor-auth:hover{
+  transform: scale(1.05);
+   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+}
 /* Info Grid */
 .info-grid {
   display: grid;

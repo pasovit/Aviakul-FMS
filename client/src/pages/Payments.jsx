@@ -21,6 +21,8 @@ import {
 import "./Payments.css";
 
 const Payments = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [payments, setPayments] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -189,8 +191,11 @@ const Payments = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+
     try {
-      // Validation
+      setIsSubmitting(true);
+
       if (!formData.entity || !formData.amount || !formData.paymentMethod) {
         toast.error("Please fill all required fields");
         return;
@@ -198,19 +203,6 @@ const Payments = () => {
 
       if (formData.paymentMethod === "bank_transfer" && !formData.bankAccount) {
         toast.error("Please select a bank account");
-        return;
-      }
-
-      if (
-        formData.paymentMethod === "cheque" &&
-        (!formData.chequeNumber || !formData.chequeDate)
-      ) {
-        toast.error("Please enter cheque details");
-        return;
-      }
-
-      if (formData.paymentMethod === "upi" && !formData.upiId) {
-        toast.error("Please enter UPI ID");
         return;
       }
 
@@ -231,25 +223,34 @@ const Payments = () => {
       fetchPayments();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save payment");
-      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDelete = (id) => {
-    deleteWithConfirm({
-      title: "Are you sure?",
-      text: "This payment will be permanently deleted!",
-      confirmText: "Delete",
-      apiCall: () => paymentAPI.delete(id),
-      onSuccess: fetchPayments,
-    });
+  const handleDelete = async (id) => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await deleteWithConfirm({
+        title: "Are you sure?",
+        text: "This payment will be permanently deleted!",
+        confirmText: "Delete",
+        apiCall: () => paymentAPI.delete(id),
+        onSuccess: fetchPayments,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleOpenAllocationModal = async (payment) => {
     try {
       await fetchUnallocatedInvoices(
         payment.entity._id || payment.entity,
-        payment.paymentType
+        payment.paymentType,
       );
 
       setAllocationData({
@@ -283,17 +284,17 @@ const Payments = () => {
   const handleInvoiceSelection = (invoice) => {
     setAllocationData((prev) => {
       const isSelected = prev.selectedInvoices.some(
-        (inv) => inv._id === invoice._id
+        (inv) => inv._id === invoice._id,
       );
 
       if (isSelected) {
         return {
           ...prev,
           selectedInvoices: prev.selectedInvoices.filter(
-            (inv) => inv._id !== invoice._id
+            (inv) => inv._id !== invoice._id,
           ),
           allocations: prev.allocations.filter(
-            (alloc) => alloc.invoice !== invoice._id
+            (alloc) => alloc.invoice !== invoice._id,
           ),
         };
       } else {
@@ -302,7 +303,7 @@ const Payments = () => {
           prev.allocations.reduce((sum, a) => sum + a.allocatedAmount, 0);
         const amountToAllocate = Math.min(
           unallocatedAmount,
-          invoice.outstandingAmount
+          invoice.outstandingAmount,
         );
 
         return {
@@ -328,20 +329,24 @@ const Payments = () => {
       allocations: prev.allocations.map((alloc) =>
         alloc.invoice === invoiceId
           ? { ...alloc, allocatedAmount: parseFloat(amount) || 0 }
-          : alloc
+          : alloc,
       ),
     }));
   };
 
   const handleSaveAllocation = async () => {
+    if (isSubmitting) return;
+
     try {
+      setIsSubmitting(true);
+
       const totalAllocated = allocationData.allocations.reduce(
         (sum, a) => sum + a.allocatedAmount,
-        0
+        0,
       );
 
       if (totalAllocated > allocationData.payment.amount) {
-        toast.error("Total allocated amount cannot exceed payment amount");
+        toast.error("Allocated amount exceeds payment");
         return;
       }
 
@@ -356,10 +361,9 @@ const Payments = () => {
       handleCloseAllocationModal();
       fetchPayments();
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to allocate payment"
-      );
-      console.error(error);
+      toast.error("Failed to allocate payment");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -389,7 +393,11 @@ const Payments = () => {
   };
 
   const handleExport = async () => {
+    if (isSubmitting) return;
+
     try {
+      setIsSubmitting(true);
+
       const response = await paymentAPI.exportCSV({
         ...filters,
         search: searchTerm,
@@ -401,24 +409,28 @@ const Payments = () => {
       const link = document.createElement("a");
       link.href = url;
       link.download = `payments_${new Date().toISOString().slice(0, 10)}.csv`;
-
-      document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
 
       toast.success("Payments exported successfully");
-    } catch (error) {
+    } catch {
       toast.error("Failed to export payments");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="payments-page">
+    <div className={`payments-page ${isSubmitting ? "disabled" : ""}`}>
+
       <div className="page-header">
         <h1>Payments</h1>
 
         <div className="page-actions">
-          <button className="payment-export-button" onClick={handleExport}>
+          <button
+            className="payment-export-button"
+            onClick={handleExport}
+            disabled={isSubmitting}
+          >
             <FaFileExport /> Export CSV
           </button>
 
@@ -575,7 +587,7 @@ const Payments = () => {
                     </td>
                     <td>
                       {paymentMethods.find(
-                        (m) => m.value === payment.paymentMethod
+                        (m) => m.value === payment.paymentMethod,
                       )?.label || payment.paymentMethod}
                     </td>
                     <td>{getStatusBadge(payment.status)}</td>
@@ -590,14 +602,15 @@ const Payments = () => {
                       <button
                         className="btn-icon"
                         onClick={() => handleOpenModal(payment)}
-                        title="Edit"
+                        disabled={isSubmitting}
                       >
                         <FaEdit />
                       </button>
+
                       <button
                         className="btn-icon danger"
                         onClick={() => handleDelete(payment._id)}
-                        title="Delete"
+                        disabled={isSubmitting}
                       >
                         <FaTrash />
                       </button>
@@ -803,8 +816,17 @@ const Payments = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="payments-create">
-                  {editingPayment ? "Update" : "Create"} Payment
+                <button
+                  type="submit"
+                  className="payments-create"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Processing..."
+                    : editingPayment
+                      ? "Update"
+                      : "Create"}{" "}
+                  Payment
                 </button>
               </div>
             </form>
@@ -845,8 +867,8 @@ const Payments = () => {
                     {formatCurrency(
                       allocationData.allocations.reduce(
                         (sum, a) => sum + a.allocatedAmount,
-                        0
-                      )
+                        0,
+                      ),
                     )}
                   </span>
                 </div>
@@ -857,8 +879,8 @@ const Payments = () => {
                       allocationData.payment?.amount -
                         allocationData.allocations.reduce(
                           (sum, a) => sum + a.allocatedAmount,
-                          0
-                        )
+                          0,
+                        ),
                     )}
                   </span>
                 </div>
@@ -889,10 +911,10 @@ const Payments = () => {
                     ) : (
                       invoices.map((invoice) => {
                         const isSelected = allocationData.selectedInvoices.some(
-                          (inv) => inv._id === invoice._id
+                          (inv) => inv._id === invoice._id,
                         );
                         const allocation = allocationData.allocations.find(
-                          (a) => a.invoice === invoice._id
+                          (a) => a.invoice === invoice._id,
                         );
 
                         return (
@@ -910,7 +932,7 @@ const Payments = () => {
                             <td>{invoice.invoiceNumber}</td>
                             <td>
                               {new Date(
-                                invoice.invoiceDate
+                                invoice.invoiceDate,
                               ).toLocaleDateString()}
                             </td>
                             <td className="amount">
@@ -924,7 +946,7 @@ const Payments = () => {
                                   onChange={(e) =>
                                     handleAllocationAmountChange(
                                       invoice._id,
-                                      e.target.value
+                                      e.target.value,
                                     )
                                   }
                                   step="0.01"
@@ -981,7 +1003,9 @@ const Payments = () => {
               <button
                 className="payments-create"
                 onClick={handleSaveAllocation}
-                disabled={allocationData.allocations.length === 0}
+                disabled={
+                  isSubmitting || allocationData.allocations.length === 0
+                }
               >
                 Save Allocation
               </button>
