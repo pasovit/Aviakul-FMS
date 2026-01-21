@@ -10,7 +10,7 @@
   display: flex;
   gap: 1rem;
 }
-.add-transaction,.transaction-export,.transaction-show-filters,.transaction-create{
+.add-transaction,.transaction-export,.transaction-show-filters,.transaction-create,.transaction-import{
   background: #1c3787;
   color: white;
   border: none;
@@ -19,7 +19,7 @@
   cursor: pointer;
   transition: transform 0.2s ease;
 }
-.add-transaction:hover,.transaction-export:hover,.transaction-show-filters:hover,.transaction-create:hover{
+.add-transaction:hover,.transaction-export:hover,.transaction-show-filters:hover,.transaction-create:hover,.transaction-import:hover{
   transform: scale(1.05);
    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 

@@ -26,6 +26,11 @@ const Transactions = () => {
   const [pagination, setPagination] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [importPreview, setImportPreview] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [tempFile, setTempFile] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+
   const [filters, setFilters] = useState({
     entity: "",
     bankAccount: "",
@@ -190,19 +195,29 @@ const Transactions = () => {
     try {
       setIsSubmitting(true);
 
+      const amount = Number(formData.amount) || 0;
+      const cgst = Number(formData.cgst) || 0;
+      const sgst = Number(formData.sgst) || 0;
+      const igst = Number(formData.igst) || 0;
+      const tds = Number(formData.tdsAmount) || 0;
+
+      const totalAmount = amount + cgst + sgst + igst - tds;
+
+      if (totalAmount <= 0) {
+        toast.error("Total amount must be greater than 0");
+        return;
+      }
+
       const submitData = {
         ...formData,
-        gstDetails: {
-          cgst: parseFloat(formData.cgst) || 0,
-          sgst: parseFloat(formData.sgst) || 0,
-          igst: parseFloat(formData.igst) || 0,
-        },
+        amount,
+        gstDetails: { cgst, sgst, igst },
         tdsDetails: {
           section: formData.tdsSection,
-          rate: parseFloat(formData.tdsRate) || 0,
-          amount: parseFloat(formData.tdsAmount) || 0,
+          rate: formData.tdsRate,
+          amount: tds,
         },
-        amount: parseFloat(formData.amount),
+        totalAmount,
       };
 
       if (editingTransaction) {
@@ -225,23 +240,23 @@ const Transactions = () => {
     }
   };
 
-const handleDelete = async (id) => {
-  if (isSubmitting) return;
+  const handleDelete = async (id) => {
+    if (isSubmitting) return;
 
-  setIsSubmitting(true);
+    setIsSubmitting(true);
 
-  try {
-    await deleteWithConfirm({
-      title: "Are you sure?",
-      text: "This transaction will be permanently deleted!",
-      confirmText: "Delete",
-      apiCall: () => transactionAPI.delete(id),
-      onSuccess: fetchTransactions,
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+    try {
+      await deleteWithConfirm({
+        title: "Are you sure?",
+        text: "This transaction will be permanently deleted!",
+        confirmText: "Delete",
+        apiCall: () => transactionAPI.delete(id),
+        onSuccess: fetchTransactions,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleBulkUpdate = async (status) => {
     if (selectedIds.length === 0) {
@@ -280,32 +295,88 @@ const handleDelete = async (id) => {
   //   }
   // };
 
-const handleExportCSV = async () => {
-  if (isSubmitting) return;
+  const handleExportCSV = async () => {
+    if (isSubmitting) return;
 
-  try {
-    setIsSubmitting(true);
+    try {
+      setIsSubmitting(true);
 
-    const response = await transactionAPI.exportAll({
-      responseType: "blob",
-    });
+      const response = await transactionAPI.exportAll({
+        responseType: "blob",
+      });
 
-    const blob = new Blob([response.data], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
+      const blob = new Blob([response.data], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `transactions_${Date.now()}.csv`;
-    link.click();
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `transactions_${Date.now()}.csv`;
+      link.click();
 
-    toast.success("CSV exported successfully");
-  } catch {
-    toast.error("Failed to export CSV");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      toast.success("CSV exported successfully");
+    } catch {
+      toast.error("Failed to export CSV");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
+  //import
+  const handleImportCSV = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".csv") && !file.name.endsWith(".xlsx")) {
+      toast.error("Please upload a CSV or Excel file");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      setIsSubmitting(true);
+
+      // ✅ PREVIEW API
+      const res = await transactionAPI.importPreview(formData);
+
+      console.log(res);
+
+      setImportPreview(res.data.preview);
+      setImportErrors(res.data.errors || []);
+      setTempFile(res.data.tempFilePath);
+      setShowImportModal(true);
+
+      toast.success("File uploaded. Review before importing.");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to import file");
+    } finally {
+      setIsSubmitting(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (isSubmitting) return;
+    try {
+      setIsSubmitting(true);
+
+      const res = await transactionAPI.importCommit({
+        tempFilePath: tempFile,
+      });
+
+      toast.success(
+        `Imported: ${res.data.imported}, Skipped: ${res.data.skipped}`,
+      );
+
+      setShowImportModal(false);
+      fetchTransactions();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Import failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -342,8 +413,9 @@ const handleExportCSV = async () => {
   }
 
   return (
-    <div className={`transactions-page ${isSubmitting ? "disabled" : ""}`}>
+   
 
+   <div className={`transactions-page ${isSubmitting ? "transactions-disabled" : ""}`}>
       <div className="page-header">
         <div>
           <h1>Transactions</h1>
@@ -356,10 +428,21 @@ const handleExportCSV = async () => {
           >
             <FaFilter /> Filters
           </button>
+          <label className="transaction-import">
+            <FaUpload /> Import CSV
+            <input
+              type="file"
+              accept=".csv"
+              hidden
+              onChange={handleImportCSV}
+            />
+          </label>
+
           <button className="transaction-export" onClick={handleExportCSV}>
-            <FaFileExcel /> Export.CSV
+            <FaFileExcel /> Export CSV
           </button>
-          {/* <button className="transaction-export" onClick={handleExport}>
+          {/* 
+          <button className="transaction-export" onClick={handleExport}>
             <FaFileExcel /> Export.xlsx
           </button> */}
           <button
@@ -500,7 +583,7 @@ const handleExportCSV = async () => {
                 <td>{formatDate(txn.transactionDate)}</td>
                 <td>{txn.entity?.name}</td>
                 <td>
-                  <span className={`badge ${getTypeBadge(txn.type)}`}>
+                 <span className={`badge ${getTypeBadge(txn.type)}`}>
                     {txn.type}
                   </span>
                 </td>
@@ -749,6 +832,65 @@ const handleExportCSV = async () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showImportModal && (
+        <div className="transaction-modal-overlay">
+          <div className="modal-content large">
+            <div className="modal-header">
+              <h3>Import Preview</h3>
+              <button onClick={() => setShowImportModal(false)}>×</button>
+            </div>
+
+            <div className="modal-body">
+              <p>
+                <b>Valid Rows:</b> {importPreview.length}
+              </p>
+              <p>
+                <b>Errors:</b> {importErrors.length}
+              </p>
+
+              {importErrors.length > 0 && (
+                <div className="error-box">
+                  {importErrors.map((e, i) => (
+                    <div key={i}>
+                      Row {e.row}: {e.error}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <table className="preview-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Entity</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Party</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.map((row, i) => (
+                    <tr key={i}>
+                      <td>{row.Date}</td>
+                      <td>{row.Entity}</td>
+                      <td>{row.Type}</td>
+                      <td>{row.Amount}</td>
+                      <td>{row["Party Name"]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowImportModal(false)}>Cancel</button>
+              <button className="transaction-import" disabled={isSubmitting} onClick={handleConfirmImport}>
+                {isSubmitting ? "Importing..." : "Confirm Import"}
+              </button>
+            </div>
           </div>
         </div>
       )}

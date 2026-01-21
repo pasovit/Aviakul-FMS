@@ -37,16 +37,21 @@ const vendorSchema = new mongoose.Schema(
         "Invalid email format",
       ],
     },
-    phone: {
+   phone: {
       type: String,
       trim: true,
-      match: [/^[0-9]{10}$/, "Phone number must be 10 digits"],
+      match: [
+        /^\+?[1-9]\d{9,14}$/,
+        "Phone number must be a valid international number",
+      ],
     },
+
     alternatePhone: {
       type: String,
       trim: true,
-      match: [/^[0-9]{10}$/, "Alternate phone must be 10 digits"],
+      match: [/^\+?[1-9]\d{9,14}$/, "Alternate phone number must be valid"],
     },
+
     pan: {
       type: String,
       trim: true,
@@ -270,7 +275,7 @@ vendorSchema.pre("validate", async function (next) {
     }
   }
 
-  this.vendorCode = `VEN${String(nextNumber).padStart(3, "0")}`;
+  this.vendorCode = `VEN-${String(nextNumber).padStart(3, "0")}`;
 
   next();
 });

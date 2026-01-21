@@ -29,18 +29,20 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = function (req, file, cb) {
-  // Accept only Excel files
-  if (
-    file.mimetype ===
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-    file.mimetype === "application/vnd.ms-excel"
-  ) {
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+    "application/vnd.ms-excel", // .xls
+    "text/csv" // CSV
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Only Excel files are allowed"), false);
+    cb(new Error("Only Excel or CSV files are allowed"), false);
   }
 };
+
 
 const upload = multer({
   storage: storage,

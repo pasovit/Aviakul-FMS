@@ -7,10 +7,10 @@ const { logAction } = require("../middleware/audit");
 // @access  Private
 exports.getBankAccounts = async (req, res, next) => {
   try {
-    const { entity, accountType, isActive, search } = req.query;
+    const { entity, accountType, search } = req.query;
 
     // Build query based on user role
-    let query = {};
+    let query = {isActive:true};
 
     // Entity-scoped access for non-admin users
     if (req.user.role === "employee" || req.user.role === "observer") {
@@ -32,10 +32,6 @@ exports.getBankAccounts = async (req, res, next) => {
 
     if (accountType) {
       query.accountType = accountType;
-    }
-
-    if (isActive !== undefined) {
-      query.isActive = isActive === "true";
     }
 
     // Search by account name or account number
