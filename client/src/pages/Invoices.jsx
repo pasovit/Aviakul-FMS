@@ -35,6 +35,7 @@ const Invoices = () => {
     invoiceType: "sales",
     customer: "",
     vendor: "",
+    gstType: "cgst_sgst",
     invoiceDate: new Date().toISOString().split("T")[0],
     dueDate: "",
     lineItems: [
@@ -145,6 +146,7 @@ const Invoices = () => {
         invoiceType: invoice.invoiceType,
         customer: invoice.customer?._id || invoice.customer || "",
         vendor: invoice.vendor?._id || invoice.vendor || "",
+        gstType:"cgst_sgst",
         invoiceDate: invoice.invoiceDate.split("T")[0],
         dueDate: invoice.dueDate.split("T")[0],
         lineItems: invoice.lineItems || [
@@ -165,6 +167,7 @@ const Invoices = () => {
         invoiceType: "sales",
         customer: "",
         vendor: "",
+        gstType: "cgst_sgst",
         invoiceDate: new Date().toISOString().split("T")[0],
         dueDate: "",
         lineItems: [
@@ -216,6 +219,12 @@ const Invoices = () => {
         updated.dueDate = calculateDueDate(updated.invoiceDate, value, "");
       }
 
+      if (name === "gstType") {
+        updated.cgst = 0;
+        updated.sgst = 0;
+        updated.igst = 0;
+      }
+
       return updated;
     });
   };
@@ -247,18 +256,44 @@ const Invoices = () => {
     }
   };
 
+  // const calculateTotals = () => {
+  //   const subtotal = formData.lineItems.reduce((sum, item) => {
+  //     return sum + item.quantity * item.rate;
+  //   }, 0);
+
+  //   const taxTotal = formData.lineItems.reduce((sum, item) => {
+  //     return sum + (item.quantity * item.rate * item.taxRate) / 100;
+  //   }, 0);
+
+  //   const total = subtotal + taxTotal - formData.tdsAmount + formData.roundOff;
+
+  //   return { subtotal, taxTotal, total };
+  // };
+
   const calculateTotals = () => {
-    const subtotal = formData.lineItems.reduce((sum, item) => {
-      return sum + item.quantity * item.rate;
-    }, 0);
+    const subtotal = formData.lineItems.reduce(
+      (sum, item) => sum + item.quantity * item.rate,
+      0,
+    );
 
-    const taxTotal = formData.lineItems.reduce((sum, item) => {
-      return sum + (item.quantity * item.rate * item.taxRate) / 100;
-    }, 0);
+    const taxFromItems = formData.lineItems.reduce(
+      (sum, item) => sum + (item.quantity * item.rate * item.taxRate) / 100,
+      0,
+    );
 
-    const total = subtotal + taxTotal - formData.tdsAmount + formData.roundOff;
+    const gstAmount =
+      formData.gstType === "igst"
+        ? Number(formData.igst)
+        : Number(formData.cgst) + Number(formData.sgst);
 
-    return { subtotal, taxTotal, total };
+    const total =
+      subtotal +
+      taxFromItems +
+      gstAmount -
+      Number(formData.tdsAmount || 0) +
+      Number(formData.roundOff || 0);
+
+    return { subtotal, taxTotal: taxFromItems + gstAmount, total };
   };
 
   const handleSubmit = async (e) => {
@@ -360,7 +395,6 @@ const Invoices = () => {
 
   return (
     <div className={`invoices-page ${isSubmitting ? "disabled" : ""}`}>
-
       <div className="page-header">
         <h1>Invoices</h1>
 
@@ -806,39 +840,63 @@ const Invoices = () => {
                   <div className="totals-left">
                     <div className="form-row">
                       <div className="form-group">
-                        <label>CGST</label>
-                        <input
-                          type="number"
-                          name="cgst"
-                          value={formData.cgst}
+                        <label>GST Type</label>
+                        <select
+                          name="gstType"
+                          value={formData.gstType}
                           onChange={handleChange}
-                          min="0"
-                          step="0.01"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>SGST</label>
-                        <input
-                          type="number"
-                          name="sgst"
-                          value={formData.sgst}
-                          onChange={handleChange}
-                          min="0"
-                          step="0.01"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>IGST</label>
-                        <input
-                          type="number"
-                          name="igst"
-                          value={formData.igst}
-                          onChange={handleChange}
-                          min="0"
-                          step="0.01"
-                        />
+                        >
+                          <option value="cgst_sgst">CGST + SGST</option>
+                          <option value="igst">IGST</option>
+                        </select>
                       </div>
                     </div>
+
+                    {/* GST Inputs */}
+                    {formData.gstType === "cgst_sgst" && (
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>CGST</label>
+                          <input
+                            type="number"
+                            name="cgst"
+                            value={formData.cgst}
+                            onChange={handleChange}
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>SGST</label>
+                          <input
+                            type="number"
+                            name="sgst"
+                            value={formData.sgst}
+                            onChange={handleChange}
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.gstType === "igst" && (
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>IGST</label>
+                          <input
+                            type="number"
+                            name="igst"
+                            value={formData.igst}
+                            onChange={handleChange}
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     <div className="form-row">
                       <div className="form-group">
                         <label>TDS Amount</label>

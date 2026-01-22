@@ -408,7 +408,7 @@
 
 /* Buttons */
 .add-box button,
-.actions button,
+.actions .sub,
 .back-btn {
   background: #1c3787;
   color: white;
@@ -420,7 +420,7 @@
 }
 
 .add-box button:hover,
-.actions button:hover,
+.actions .sub:hover,
 .back-btn:hover {
   transform: scale(1.05);
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
@@ -453,15 +453,15 @@
   gap: 8px;
 }
 
-.actions button {
+/* .actions button {
   padding: 6px 10px;
   font-size: 14px;
 }
 
 /* Delete button */
-.actions button:last-child {
+/* .actions button:last-child {
   background: #e11d48;
-}
+} */ */
 
 /* Sub Category Header */
 .subcategory-header {

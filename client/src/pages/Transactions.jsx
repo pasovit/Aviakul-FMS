@@ -1085,6 +1085,7 @@ const Transactions = () => {
                           <span>{cat.name}</span>
                           <div className="actions">
                             <button
+                              className="btn-icon"
                               onClick={() => {
                                 setEditingCategory(cat._id);
                                 setNewCategory(cat.name);
@@ -1093,6 +1094,7 @@ const Transactions = () => {
                               <FaEdit/>
                             </button>
                             <button
+                              className="sub"
                               onClick={() => {
                                 setSelectedCategory(cat);
                                 fetchSubCategories(cat._id);
@@ -1102,6 +1104,7 @@ const Transactions = () => {
                               Sub
                             </button>
                             <button
+                              className="btn-icon danger"
                               onClick={async () => {
                                 await categoryAPI.delete(cat._id);
                                 fetchCategories();
@@ -1185,6 +1188,7 @@ const Transactions = () => {
                           <span>{sub.name}</span>
                           <div className="actions">
                             <button
+                            className="btn-icon"
                               onClick={() => {
                                 setEditingSubCategory(sub._id);
                                 setNewSubCategory(sub.name);
@@ -1192,7 +1196,8 @@ const Transactions = () => {
                             >
                               <FaEdit/>
                             </button>
-                            <button
+                            <button 
+                             className="btn-icon danger"
                               onClick={() =>
                                 subCategoryAPI
                                   .delete(sub._id)
