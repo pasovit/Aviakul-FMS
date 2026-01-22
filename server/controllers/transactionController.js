@@ -154,7 +154,8 @@ exports.getTransaction = async (req, res, next) => {
 // @route   POST /api/transactions
 // @access  Private (Admin+)
 exports.createTransaction = async (req, res, next) => {
-  try {
+  try {  
+    
     // Verify entity exists
     const entity = await Entity.findById(req.body.entity);
     if (!entity) {

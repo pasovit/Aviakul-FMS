@@ -1,4 +1,6 @@
 const mongoose = require("mongoose");
+const Counter = require("./Counter");
+
 
 const transactionSchema = new mongoose.Schema(
   {
@@ -8,6 +10,12 @@ const transactionSchema = new mongoose.Schema(
       required: [true, "Entity is required"],
       index: true,
     },
+    transactionCode: {
+      type: String,
+      unique: true,
+      index: true,
+    },
+
     bankAccount: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "BankAccount",
@@ -340,6 +348,30 @@ transactionSchema.statics.getCategoryBreakdown = function (
     { $sort: { totalAmount: -1 } },
   ]);
 };
+
+transactionSchema.pre("validate", async function (next) {
+  if (!this.isNew) return next();
+
+  try {
+    const year = new Date(this.transactionDate).getFullYear();
+
+    const counter = await Counter.findOneAndUpdate(
+      {
+        name: "transaction",
+        year,
+      },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+
+    this.transactionCode = `TRX-${year}-${String(counter.seq).padStart(4, "0")}`;
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 
 // Ensure virtuals are included in JSON
 transactionSchema.set("toJSON", { virtuals: true });
