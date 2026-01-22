@@ -83,6 +83,8 @@ exports.getTransactions = async (req, res, next) => {
       .populate("transferToAccount", "accountName accountNumber bankName")
       .populate("createdBy", "firstName lastName")
       .populate("updatedBy", "firstName lastName")
+      .populate("category", "name")
+      .populate("subCategory", "name")
       .sort({ [sortBy]: sortOrder === "asc" ? 1 : -1 })
       .skip(skip)
       .limit(limitNum);

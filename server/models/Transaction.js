@@ -22,20 +22,25 @@ const transactionSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: {
-        values: ["income", "expense", "loan","refund"],
+        values: ["income", "expense", "loan", "refund"],
         message: "{VALUE} is not a valid transaction type",
       },
       required: [true, "Transaction type is required"],
       index: true,
     },
     category: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
       required: [true, "Category is required"],
-      trim: true,
-      maxlength: [50, "Category cannot exceed 50 characters"],
       index: true,
-      // Common categories: Salary, Rent, Utilities, Consulting, Sales, Purchase, Travel, etc.
     },
+
+    subCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubCategory",
+      index: true,
+    },
+
     partyName: {
       type: String,
       required: [true, "Party name is required"],
@@ -62,7 +67,7 @@ const transactionSchema = new mongoose.Schema(
         validator: function (v) {
           if (!v) return true; // Optional field
           return /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(
-            v
+            v,
           );
         },
         message: "Invalid GSTIN format",
@@ -140,7 +145,7 @@ const transactionSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ["pending", "paid", "cancelled", "reconciled","received"],
+        values: ["pending", "paid", "cancelled", "reconciled", "received"],
         message: "{VALUE} is not a valid status",
       },
       default: "pending",
@@ -197,7 +202,7 @@ const transactionSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Compound indexes for efficient queries
@@ -253,6 +258,9 @@ transactionSchema.statics.getByFilters = function (filters, options = {}) {
   query.populate("entity", "name type");
   query.populate("bankAccount", "accountName accountNumber bankName");
   query.populate("transferToAccount", "accountName accountNumber bankName");
+  query.populate("category", "name");
+  query.populate("subCategory", "name");
+
   query.populate("createdBy", "firstName lastName");
   query.populate("updatedBy", "firstName lastName");
 
@@ -274,7 +282,7 @@ transactionSchema.statics.getByFilters = function (filters, options = {}) {
 transactionSchema.statics.getSummaryByEntity = function (
   entityId,
   startDate,
-  endDate
+  endDate,
 ) {
   const matchStage = {
     entity: mongoose.Types.ObjectId(entityId),
@@ -305,7 +313,7 @@ transactionSchema.statics.getCategoryBreakdown = function (
   entityId,
   type,
   startDate,
-  endDate
+  endDate,
 ) {
   const matchStage = {
     entity: mongoose.Types.ObjectId(entityId),
