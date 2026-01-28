@@ -38,6 +38,36 @@ api.interceptors.response.use(
   },
 );
 
+// Category API calls
+export const categoryAPI = {
+  getAll: () => api.get("/categories"),
+
+  getById: (id) => api.get(`/categories/${id}`),
+
+  create: (data) => api.post("/categories", data),
+
+  update: (id, data) => api.put(`/categories/${id}`, data),
+
+  delete: (id) => api.delete(`/categories/${id}`),
+};
+
+// SubCategory API calls
+export const subCategoryAPI = {
+  getAll: () => api.get("/subcategories"),
+
+  getById: (id) => api.get(`/subcategories/${id}`),
+
+  getByCategory: (categoryId) =>
+    api.get(`/subcategories/category/${categoryId}`),
+
+  create: (data) => api.post("/subcategories", data),
+
+  update: (id, data) => api.put(`/subcategories/${id}`, data),
+
+  delete: (id) => api.delete(`/subcategories/${id}`),
+};
+
+
 // Auth API calls
 export const authAPI = {
   login: (credentials) => api.post("/auth/login", credentials),

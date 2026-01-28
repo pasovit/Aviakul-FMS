@@ -9,23 +9,28 @@ import {
   FaUpload,
   FaSearch,
   FaFilter,
+  FaCog,
 } from "react-icons/fa";
-import { transactionAPI, bankAccountAPI, entityAPI } from "../services/api";
+import {
+  transactionAPI,
+  bankAccountAPI,
+  entityAPI,
+  categoryAPI,
+  subCategoryAPI,
+} from "../services/api";
 import "./Transactions.css";
 import { FiEdit } from "react-icons/fi";
 
-const CATEGORY_OPTIONS = [
-  { label: "Salary", value: "salary" },
-  { label: "Sales", value: "sales"},
-  { label: "Consulting", value: "consulting" },
+// const CATEGORY_OPTIONS = [
+//   { label: "Salary", value: "salary" },
+//   { label: "Sales", value: "sales" },
+//   { label: "Consulting", value: "consulting" },
 
-  { label: "Rent", value: "rent"},
-  { label: "Utilities", value: "utilities" },
-  { label: "Travel", value: "travel" },
-  { label: "Purchase", value: "purchase"},
-
-
-];
+//   { label: "Rent", value: "rent" },
+//   { label: "Utilities", value: "utilities" },
+//   { label: "Travel", value: "travel" },
+//   { label: "Purchase", value: "purchase" },
+// ];
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -43,6 +48,22 @@ const Transactions = () => {
   const [importErrors, setImportErrors] = useState([]);
   const [tempFile, setTempFile] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
+
+  const [categories, setCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
+
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+
+  const [newSubCategory, setNewSubCategory] = useState("");
+  const [selectedCategoryForSub, setSelectedCategoryForSub] = useState("");
+
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editingSubCategory, setEditingSubCategory] = useState(null);
+
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  const [activeTab, setActiveTab] = useState("category");
 
   const [filters, setFilters] = useState({
     entity: "",
@@ -86,12 +107,24 @@ const Transactions = () => {
     fetchTransactions();
     fetchEntities();
     fetchBankAccounts();
+    fetchCategories();
   }, [filters]);
+
+  const fetchCategories = async () => {
+    const res = await categoryAPI.getAll();
+    setCategories(res.data.data);
+  };
+
+  const fetchSubCategories = async (categoryId) => {
+    const res = await subCategoryAPI.getByCategory(categoryId);
+    setSubCategories(res.data.data);
+  };
 
   const fetchTransactions = async () => {
     try {
       setLoading(true);
       const response = await transactionAPI.getAll(filters);
+      console.log(response);
       setTransactions(response.data.data);
       setPagination(response.data.pagination);
     } catch (error) {
@@ -423,6 +456,27 @@ const Transactions = () => {
     return badges[type] || "badge-secondary";
   };
 
+  const handleSaveCategory = async (id) => {
+    if (!newCategory.trim()) return;
+
+    await categoryAPI.update(id, { name: newCategory });
+    setEditingCategory(null);
+    setNewCategory("");
+    fetchCategories();
+  };
+
+  const handleSaveSubCategory = async (id) => {
+    if (!newSubCategory.trim()) return;
+
+    await subCategoryAPI.update(id, {
+      name: newSubCategory,
+    });
+
+    setEditingSubCategory(null);
+    setNewSubCategory("");
+    fetchSubCategories(selectedCategoryForSub);
+  };
+
   if (loading) {
     return <div className="loading">Loading transactions...</div>;
   }
@@ -602,7 +656,7 @@ const Transactions = () => {
                     {txn.type}
                   </span>
                 </td>
-                <td>{txn.category}</td>
+                <td>{txn.category?.name}</td>
                 <td>{txn.partyName}</td>
                 <td
                   className={
@@ -752,18 +806,47 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Category *</label>
+                  <label>
+                    Category *
+                    <FaCog
+                      style={{ marginLeft: 8, cursor: "pointer" }}
+                      onClick={() => setShowCategoryModal(true)}
+                    />
+                  </label>
+
                   <select
                     name="category"
                     value={formData.category}
-                    onChange={handleInputChange}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        category: e.target.value,
+                        subCategory: "",
+                      });
+                      fetchSubCategories(e.target.value);
+                    }}
                     required
                   >
                     <option value="">Select Category</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                    {CATEGORY_OPTIONS.map((cat) => (
-                      <option key={cat.value} value={cat.value}>
-                        {cat.label}
+                <div className="form-group">
+                  <label>Sub Category</label>
+                  <select
+                    name="subCategory"
+                    value={formData.subCategory || ""}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select Sub Category</option>
+                    {subCategories.map((sub) => (
+                      <option key={sub._id} value={sub._id}>
+                        {sub.name}
                       </option>
                     ))}
                   </select>
@@ -923,6 +1006,215 @@ const Transactions = () => {
               >
                 {isSubmitting ? "Importing..." : "Confirm Import"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCategoryModal && (
+        <div className="settings-modal-overlay">
+          <div className="settings-modal">
+            {/* HEADER */}
+            <div className="settings-modal-header">
+              <h3>Manage Categories</h3>
+              <button onClick={() => setShowCategoryModal(false)}>×</button>
+            </div>
+
+            {/* TABS */}
+            <div className="tab-header">
+              <button
+                className={activeTab === "category" ? "active" : ""}
+                onClick={() => setActiveTab("category")}
+              >
+                Categories
+              </button>
+
+              <button
+                disabled={!selectedCategory}
+                className={activeTab === "sub" ? "active" : ""}
+              >
+                Sub Categories
+              </button>
+            </div>
+
+            <div className="settings-modal-body">
+              {/* ================= CATEGORY TAB ================= */}
+              {activeTab === "category" && (
+                <>
+                  <div className="add-box">
+                    <input
+                      placeholder="New Category"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                    />
+                    <button
+                      onClick={async () => {
+                        await categoryAPI.create({ name: newCategory });
+                        setNewCategory("");
+                        fetchCategories();
+                      }}
+                    >
+                      + Add
+                    </button>
+                  </div>
+
+                  {categories.map((cat) => (
+                    <div className="row" key={cat._id}>
+                      {editingCategory === cat._id ? (
+                        <div className="edit-row">
+                          <input
+                            className="edit-input"
+                            value={newCategory}
+                            onChange={(e) => setNewCategory(e.target.value)}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter")
+                                handleSaveCategory(cat._id);
+                            }}
+                          />
+
+                          <button
+                            className="edit-save-btn"
+                            onClick={() => handleSaveCategory(cat._id)}
+                          >
+                            Save
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span>{cat.name}</span>
+                          <div className="actions">
+                            <button
+                              className="btn-icon"
+                              onClick={() => {
+                                setEditingCategory(cat._id);
+                                setNewCategory(cat.name);
+                              }}
+                            >
+                              <FaEdit/>
+                            </button>
+                            <button
+                              className="sub"
+                              onClick={() => {
+                                setSelectedCategory(cat);
+                                fetchSubCategories(cat._id);
+                                setActiveTab("sub");
+                              }}
+                            >
+                              Sub
+                            </button>
+                            <button
+                              className="btn-icon danger"
+                              onClick={async () => {
+                                await categoryAPI.delete(cat._id);
+                                fetchCategories();
+                              }}
+                            >
+                              <FaTrash/>
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {/* ================= SUB CATEGORY TAB ================= */}
+              {activeTab === "sub" && selectedCategory && (
+                <>
+                  <div className="subcategory-header">
+                    <div>
+                      <h4>Sub Categories</h4>
+                      <p>
+                        Category: <b>{selectedCategory.name}</b>
+                      </p>
+                    </div>
+                    <button
+                      className="back-btn"
+                      onClick={() => {
+                        setActiveTab("category");
+                        setSelectedCategory(null);
+                      }}
+                    >
+                      ← Back
+                    </button>
+                  </div>
+
+                  <div className="add-box">
+                    <input
+                      placeholder="New Sub Category"
+                      value={newSubCategory}
+                      onChange={(e) => setNewSubCategory(e.target.value)}
+                    />
+                    <button
+                      onClick={async () => {
+                        await subCategoryAPI.create({
+                          name: newSubCategory,
+                          category: selectedCategory._id,
+                        });
+                        setNewSubCategory("");
+                        fetchSubCategories(selectedCategory._id);
+                      }}
+                    >
+                      + Add
+                    </button>
+                  </div>
+
+                  {subCategories.map((sub) => (
+                    <div className="row" key={sub._id}>
+                      {editingSubCategory === sub._id ? (
+                        <div className="edit-row">
+                          <input
+                            className="edit-input"
+                            value={newSubCategory}
+                            onChange={(e) => setNewSubCategory(e.target.value)}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter")
+                                handleSaveSubCategory(sub._id);
+                            }}
+                          />
+
+                          <button
+                            className="edit-save-btn"
+                            onClick={() => handleSaveSubCategory(sub._id)}
+                          >
+                            Save
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span>{sub.name}</span>
+                          <div className="actions">
+                            <button
+                            className="btn-icon"
+                              onClick={() => {
+                                setEditingSubCategory(sub._id);
+                                setNewSubCategory(sub.name);
+                              }}
+                            >
+                              <FaEdit/>
+                            </button>
+                            <button 
+                             className="btn-icon danger"
+                              onClick={() =>
+                                subCategoryAPI
+                                  .delete(sub._id)
+                                  .then(() =>
+                                    fetchSubCategories(selectedCategory._id),
+                                  )
+                              }
+                            >
+                              <FaTrash/>
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         </div>

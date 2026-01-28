@@ -21,6 +21,8 @@ const customerRoutes = require("./routes/customerRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 
+
+
 // Utils
 const { logger } = require("./utils/logger");
 const { startCronJobs } = require("./jobs");
@@ -130,6 +132,10 @@ app.use("/api/vendors", vendorRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/payments", paymentRoutes);
+
+app.use("/api/categories", require("./routes/categoryRoutes"));
+app.use("/api/subcategories", require("./routes/subCategoryRoutes"));
+
 
 /* ======================================================
    404 HANDLER

@@ -83,6 +83,8 @@ exports.getTransactions = async (req, res, next) => {
       .populate("transferToAccount", "accountName accountNumber bankName")
       .populate("createdBy", "firstName lastName")
       .populate("updatedBy", "firstName lastName")
+      .populate("category", "name")
+      .populate("subCategory", "name")
       .sort({ [sortBy]: sortOrder === "asc" ? 1 : -1 })
       .skip(skip)
       .limit(limitNum);
@@ -152,7 +154,8 @@ exports.getTransaction = async (req, res, next) => {
 // @route   POST /api/transactions
 // @access  Private (Admin+)
 exports.createTransaction = async (req, res, next) => {
-  try {
+  try {  
+    
     // Verify entity exists
     const entity = await Entity.findById(req.body.entity);
     if (!entity) {

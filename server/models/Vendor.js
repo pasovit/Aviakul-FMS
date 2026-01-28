@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const Counter = require("./Counter");
 
 
 const vendorSchema = new mongoose.Schema(
@@ -215,6 +216,8 @@ const vendorSchema = new mongoose.Schema(
 vendorSchema.index({ entity: 1, isActive: 1 });
 vendorSchema.index({ entity: 1, category: 1 });
 vendorSchema.index({ name: "text" });
+vendorSchema.index({ vendorCode: 1 }, { unique: true });
+
 
 // Virtual for payment days
 vendorSchema.virtual("paymentDays").get(function () {
@@ -242,11 +245,11 @@ vendorSchema.virtual("availableCredit").get(function () {
   return Math.max(0, this.creditLimit - this.currentOutstanding);
 });
 
-// Static method to generate vendor code
-vendorSchema.statics.generateVendorCode = async function (entityId) {
-  const count = await this.countDocuments({ entity: entityId });
-  return `VEN-${String(count + 1).padStart(5, "0")}`;
-};
+// // Static method to generate vendor code
+// vendorSchema.statics.generateVendorCode = async function (entityId) {
+//   const count = await this.countDocuments({ entity: entityId });
+//   return `VEN-${String(count + 1).padStart(5, "0")}`;
+// };
 
 // Static method to update outstanding balance
 vendorSchema.statics.updateOutstanding = async function (vendorId, amount) {
@@ -259,26 +262,20 @@ vendorSchema.statics.updateOutstanding = async function (vendorId, amount) {
 
 // Pre-save hook to generate vendor code
 vendorSchema.pre("validate", async function (next) {
-  if (!this.isNew || this.vendorCode) return next();
+  if (!this.isNew) return next();
 
-  const lastVendor = await this.constructor
-    .findOne({}, { vendorCode: 1 })
-    .sort({ createdAt: -1 })
-    .lean();
+  const year = new Date().getFullYear();
 
-  let nextNumber = 1;
+  const counter = await Counter.findOneAndUpdate(
+    { name: "vendor", year },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-  if (lastVendor?.vendorCode) {
-    const match = lastVendor.vendorCode.match(/VEN-(\d+)/);
-    if (match) {
-      nextNumber = parseInt(match[1], 10) + 1;
-    }
-  }
-
-  this.vendorCode = `VEN-${String(nextNumber).padStart(3, "0")}`;
-
+  this.vendorCode = `VEN-${year}-${String(counter.seq).padStart(4, "0")}`;
   next();
 });
+
 
 
 // Ensure virtuals are included in JSON

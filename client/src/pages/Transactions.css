@@ -306,4 +306,246 @@
   border: none;
 }
 
+/* ===============================
+   CATEGORY / SUB CATEGORY MODAL
+================================ */
 
+.settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+/* Modal Box */
+.settings-modal {
+  width: 720px;
+  max-width: 95%;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+  animation: scaleFade 0.25s ease;
+  overflow: hidden;
+}
+
+/* Header */
+.settings-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1c3787;
+  color: white;
+  padding: 16px 20px;
+}
+
+.settings-modal-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.settings-modal-header button {
+  background: white;
+  color: #1c3787;
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: transform 0.2s ease;
+}
+
+.settings-modal-header button:hover {
+  transform: scale(1.1);
+}
+
+/* Tabs */
+.tab-header {
+  display: flex;
+  background: #f3f4f6;
+}
+
+.tab-header button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-header button.active {
+  background: white;
+  border-bottom: 3px solid #1c3787;
+  font-weight: 600;
+}
+
+/* Body */
+.settings-modal-body {
+  padding: 18px;
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+/* Input box */
+.add-box {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.add-box input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+}
+
+/* Buttons */
+.add-box button,
+.actions .sub,
+.back-btn {
+  background: #1c3787;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-box button:hover,
+.actions .sub:hover,
+.back-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Rows */
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9fafb;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  transition: background 0.2s ease;
+}
+
+.row:hover {
+  background: #eef2ff;
+}
+
+.row span {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* .actions button {
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+/* Delete button */
+/* .actions button:last-child {
+  background: #e11d48;
+} */ */
+
+/* Sub Category Header */
+.subcategory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.subcategory-header h4 {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.subcategory-header p {
+  font-size: 13px;
+  color: #555;
+}
+
+/* Back Button */
+.back-btn {
+  padding: 6px 12px;
+}
+
+/* Scrollbar */
+.settings-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-modal-body::-webkit-scrollbar-thumb {
+  background: #c7cbe6;
+  border-radius: 10px;
+}
+
+/* Edit Mode Row */
+.edit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+/* Input */
+.edit-input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1.5px solid #1c3787;
+  font-size: 14px;
+  outline: none;
+  transition: box-shadow 0.2s ease;
+}
+
+.edit-input:focus {
+  box-shadow: 0 0 0 2px rgba(28, 55, 135, 0.2);
+}
+
+/* Save Button */
+.edit-save-btn {
+  background: #1c3787;
+  color: #fff;
+  border: none;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.edit-save-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.15);
+}
+
+
+/* Animation */
+@keyframes scaleFade {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
