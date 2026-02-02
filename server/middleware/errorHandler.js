@@ -6,7 +6,7 @@ const errorHandler = (err, req, res, next) => {
 
   // Log error
   logger.error(
-    `${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`
+    `${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`,
   );
 
   // Mongoose bad ObjectId
@@ -40,6 +40,33 @@ const errorHandler = (err, req, res, next) => {
     const message = "Token expired";
     error = { message, statusCode: 401 };
   }
+
+    let statusCode = err.statusCode || 400;
+
+    // Mongoose validation error
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(", "),
+      });
+    }
+
+    // Mongo duplicate key
+    if (err.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Duplicate record already exists",
+      });
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      message: err.message || "Internal Server Error",
+    });
+
+
+ 
 
   res.status(error.statusCode || 500).json({
     success: false,

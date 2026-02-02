@@ -75,6 +75,7 @@ const paymentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "BankAccount",
       index: true,
+      
     },
     referenceNumber: {
       type: String,

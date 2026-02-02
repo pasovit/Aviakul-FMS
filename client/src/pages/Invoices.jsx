@@ -146,7 +146,7 @@ const Invoices = () => {
         invoiceType: invoice.invoiceType,
         customer: invoice.customer?._id || invoice.customer || "",
         vendor: invoice.vendor?._id || invoice.vendor || "",
-        gstType:"cgst_sgst",
+        gstType: "cgst_sgst",
         invoiceDate: invoice.invoiceDate.split("T")[0],
         dueDate: invoice.dueDate.split("T")[0],
         lineItems: invoice.lineItems || [
@@ -302,6 +302,38 @@ const Invoices = () => {
     if (isSubmitting) return;
 
     try {
+      if (
+        !formData.entity ||
+        !formData.invoiceType ||
+        !formData.invoiceDate ||
+        !formData.dueDate
+      ) {
+        toast.error("Please fill all mandatory invoice fields");
+        return;
+      }
+
+      if (formData.invoiceType === "sales" && !formData.customer) {
+        toast.error("Customer is required for sales invoice");
+        return;
+      }
+
+      if (formData.invoiceType === "purchase" && !formData.vendor) {
+        toast.error("Vendor is required for purchase invoice");
+        return;
+      }
+
+      if (!formData.lineItems || formData.lineItems.length === 0) {
+        toast.error("At least one line item is required");
+        return;
+      }
+
+      for (const item of formData.lineItems) {
+        if (!item.description || item.quantity <= 0 || item.rate < 0) {
+          toast.error("Please fill all required line item fields");
+          return;
+        }
+      }
+
       setIsSubmitting(true);
 
       const payload = { ...formData };
@@ -310,7 +342,12 @@ const Invoices = () => {
       if (payload.invoiceType === "purchase") delete payload.customer;
 
       if (editingInvoice) {
-        await invoiceAPI.update(editingInvoice._id, payload);
+        const cleanData = { ...payload };
+
+        if (!cleanData.notes) delete cleanData.notes;
+        if (!cleanData.termsAndConditions) delete cleanData.termsAndConditions;
+
+        await invoiceAPI.update(editingInvoice._id, cleanData);
         toast.success("Invoice updated successfully");
       } else {
         await invoiceAPI.create(payload);

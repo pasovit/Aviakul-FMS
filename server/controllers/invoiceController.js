@@ -176,7 +176,7 @@ exports.createInvoice = async (req, res) => {
       invoice._id,
       null,
       invoice.toObject(),
-      req
+      req,
     );
 
     res.status(201).json({
@@ -226,9 +226,48 @@ exports.updateInvoice = async (req, res) => {
 
     const oldData = invoice.toObject();
     const oldAmountDue = invoice.amountDue;
+    // Prevent clearing mandatory fields
+    const protectedFields = ["entity", "invoiceType", "invoiceDate", "dueDate"];
+
+    protectedFields.forEach((field) => {
+      if (req.body[field] === "" || req.body[field] === null) {
+        delete req.body[field];
+      }
+    });
 
     // Update invoice
     Object.assign(invoice, req.body, { updatedBy: userId });
+
+    if (invoice.invoiceType === "sales" && !invoice.customer) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer is required for sales invoice",
+      });
+    }
+
+    if (invoice.invoiceType === "purchase" && !invoice.vendor) {
+      return res.status(400).json({
+        success: false,
+        message: "Vendor is required for purchase invoice",
+      });
+    }
+
+    if (!invoice.lineItems || invoice.lineItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one line item is required",
+      });
+    }
+
+    for (const item of invoice.lineItems) {
+      if (!item.description || item.quantity <= 0 || item.rate < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid line item details",
+        });
+      }
+    }
+
     await invoice.save();
 
     // Adjust customer/vendor outstanding if amount changed
@@ -248,7 +287,7 @@ exports.updateInvoice = async (req, res) => {
       invoice._id,
       oldData,
       invoice.toObject(),
-      req
+      req,
     );
 
     res.json({
@@ -316,7 +355,7 @@ exports.deleteInvoice = async (req, res) => {
       invoice._id,
       oldData,
       { status: "cancelled" },
-      req
+      req,
     );
 
     res.json({
@@ -380,7 +419,7 @@ exports.getAgingReport = async (req, res) => {
     })
       .populate(invoiceType === "sales" ? "customer" : "vendor", "name")
       .select(
-        "invoiceNumber invoiceDate dueDate amountDue daysOverdue agingBucket"
+        "invoiceNumber invoiceDate dueDate amountDue daysOverdue agingBucket",
       )
       .sort({ daysOverdue: -1 })
       .limit(10);
@@ -528,7 +567,7 @@ exports.exportCSV = async (req, res) => {
     res.setHeader("Content-Type", "text/csv");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=invoices_${Date.now()}.csv`
+      `attachment; filename=invoices_${Date.now()}.csv`,
     );
 
     return res.status(200).send(csv);

@@ -3,7 +3,6 @@ import { toast } from "react-toastify";
 
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
 
-
 import {
   FaPlus,
   FaEdit,
@@ -99,6 +98,17 @@ const BankAccounts = () => {
     e.preventDefault();
 
     try {
+      if (
+        !formData.entity ||
+        !formData.accountName ||
+        !formData.accountType ||
+        formData.openingBalance === "" ||
+        formData.openingBalanceDate === ""
+      ) {
+        toast.error("Required fields cannot be empty");
+        return;
+      }
+
       // Convert cash account specifics
       const submitData = { ...formData };
       if (formData.accountType === "cash") {
@@ -141,16 +151,16 @@ const BankAccounts = () => {
     });
     setShowModal(true);
   };
-  
+
   const handleDelete = (id) => {
-  deleteWithConfirm({
-    title: "Are you sure?",
-    text: "This bank account will be deactivated!",
-    confirmText: "Deactivate",
-    apiCall: () => bankAccountAPI.delete(id),
-    onSuccess: fetchAccounts,
-  });
-};
+    deleteWithConfirm({
+      title: "Are you sure?",
+      text: "This bank account will be deactivated!",
+      confirmText: "Deactivate",
+      apiCall: () => bankAccountAPI.delete(id),
+      onSuccess: fetchAccounts,
+    });
+  };
   const formatCurrency = (amount, currency = "INR") => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -230,7 +240,10 @@ const BankAccounts = () => {
 
       <div className="accounts-grid">
         {accounts.map((account) => (
-          <div key={account._id} className={`account-card ${!account.isActive && "disabled"}`}>
+          <div
+            key={account._id}
+            className={`account-card ${!account.isActive && "disabled"}`}
+          >
             <div className="account-header">
               <div className="account-icon">
                 {getAccountTypeIcon(account.accountType)}
@@ -451,12 +464,13 @@ const BankAccounts = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Opening Balance Date</label>
+                  <label>Opening Balance Date *</label>
                   <input
                     type="date"
                     name="openingBalanceDate"
                     value={formData.openingBalanceDate}
                     onChange={handleInputChange}
+                    required
                   />
                 </div>
               </div>

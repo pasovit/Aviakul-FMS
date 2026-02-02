@@ -131,7 +131,7 @@ exports.createCustomer = async (req, res) => {
       customer._id,
       null,
       customer.toObject(),
-      req
+      req,
     );
 
     res.status(201).json({
@@ -184,9 +184,39 @@ exports.updateCustomer = async (req, res) => {
           "Cannot directly modify outstanding balance. Use invoice/payment operations.",
       });
     }
+    const protectedFields = [
+      "entity",
+      "name",
+      "billingAddress.line1",
+      "billingAddress.city",
+      "billingAddress.state",
+      "billingAddress.pincode",
+      "createdBy",
+    ];
+
+    protectedFields.forEach((field) => {
+      if (req.body[field] === "" || req.body[field] === null) {
+        delete req.body[field];
+      }
+    });
 
     // Update customer
     Object.assign(customer, req.body, { updatedBy: userId });
+
+    if (
+      !customer.entity ||
+      !customer.name ||
+      !customer.billingAddress?.line1 ||
+      !customer.billingAddress?.city ||
+      !customer.billingAddress?.state ||
+      !customer.billingAddress?.pincode
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Mandatory fields cannot be empty",
+      });
+    }
+
     await customer.save();
 
     await logAction(
@@ -196,7 +226,7 @@ exports.updateCustomer = async (req, res) => {
       customer._id,
       oldData,
       customer.toObject(),
-      req
+      req,
     );
 
     res.json({
@@ -257,7 +287,7 @@ exports.deleteCustomer = async (req, res) => {
       customer._id,
       oldData,
       { isActive: false },
-      req
+      req,
     );
 
     res.json({
@@ -378,7 +408,7 @@ exports.addShippingAddress = async (req, res) => {
       customer._id,
       null,
       { action: "add_shipping_address", address: req.body },
-      req
+      req,
     );
 
     res.json({

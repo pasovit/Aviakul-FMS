@@ -211,9 +211,33 @@ const Customers = () => {
     e.preventDefault();
 
     try {
+      if (
+        !formData.entity ||
+        !formData.name ||
+        !formData.billingAddress.line1 ||
+        !formData.billingAddress.city ||
+        !formData.billingAddress.state ||
+        !formData.billingAddress.pincode
+      ) {
+        toast.error("Please fill all mandatory fields");
+        return;
+      }
+
       if (editingCustomer) {
-        await customerAPI.update(editingCustomer._id, formData);
+        const cleanData = { ...formData };
+
+        if (!cleanData.phone) delete cleanData.phone;
+        if (!cleanData.email) delete cleanData.email;
+        if (!cleanData.alternatePhone) delete cleanData.alternatePhone;
+        if (!cleanData.pan) delete cleanData.pan;
+        if (!cleanData.gstin) delete cleanData.gstin;
+        if (!cleanData.notes) delete cleanData.notes;
+
+        await customerAPI.update(editingCustomer._id, cleanData);
         toast.success("Customer updated successfully");
+        handleCloseModal();
+        fetchCustomers();
+        return;
       } else {
         await customerAPI.create(formData);
         toast.success("Customer created successfully");
@@ -717,7 +741,7 @@ const Customers = () => {
 
                   {formData.creditTerms === "custom" && (
                     <div className="form-group">
-                      <label>Custom Days</label>
+                      <label>Custom Days *</label>
                       <input
                         type="number"
                         name="customCreditDays"
@@ -725,6 +749,7 @@ const Customers = () => {
                         onChange={handleChange}
                         min="0"
                         max="365"
+                        required
                       />
                     </div>
                   )}
