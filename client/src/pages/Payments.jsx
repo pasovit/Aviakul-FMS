@@ -24,6 +24,8 @@ const Payments = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [payments, setPayments] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [entities, setEntities] = useState([]);
@@ -36,15 +38,17 @@ const Payments = () => {
     entity: "",
     paymentType: "",
     status: "",
-    paymentMethod: "",
+    paymentMode: "",
   });
 
   const [formData, setFormData] = useState({
     entity: "",
     paymentType: "received",
+    customer: "",
+    vendor: "",
     paymentDate: new Date().toISOString().split("T")[0],
     amount: "",
-    paymentMethod: "bank_transfer",
+    paymentMode: "cash",
     bankAccount: "",
     referenceNumber: "",
     party: "",
@@ -60,11 +64,12 @@ const Payments = () => {
     selectedInvoices: [],
     allocations: [],
   });
-
   const paymentMethods = [
     { value: "cash", label: "Cash" },
     { value: "cheque", label: "Cheque" },
-    { value: "bank_transfer", label: "Bank Transfer" },
+    { value: "neft", label: "NEFT" },
+    { value: "rtgs", label: "RTGS" },
+    { value: "imps", label: "IMPS" },
     { value: "upi", label: "UPI" },
     { value: "card", label: "Card" },
   ];
@@ -80,6 +85,8 @@ const Payments = () => {
     fetchPayments();
     fetchEntities();
     fetchBankAccounts();
+    fetchCustomers();
+    fetchVendors();
   }, [filters]);
 
   const fetchPayments = async () => {
@@ -98,7 +105,23 @@ const Payments = () => {
       setLoading(false);
     }
   };
+  const fetchCustomers = async () => {
+    try {
+      const response = await customerAPI.getAll({ isActive: "true" });
+      setCustomers(response.data.data);
+    } catch (error) {
+      console.error("Failed to fetch customers:", error);
+    }
+  };
 
+  const fetchVendors = async () => {
+    try {
+      const response = await vendorAPI.getAll({ isActive: "true" });
+      setVendors(response.data.data);
+    } catch (error) {
+      console.error("Failed to fetch vendors:", error);
+    }
+  };
   const fetchEntities = async () => {
     try {
       const response = await entityAPI.getAll();
@@ -147,7 +170,7 @@ const Payments = () => {
         paymentType: payment.paymentType,
         paymentDate: payment.paymentDate.split("T")[0],
         amount: payment.amount,
-        paymentMethod: payment.paymentMethod,
+        paymentMode: payment.paymentMode,
         bankAccount: payment.bankAccount?._id || payment.bankAccount || "",
         referenceNumber: payment.referenceNumber || "",
         party: payment.party || "",
@@ -164,7 +187,7 @@ const Payments = () => {
         paymentType: "received",
         paymentDate: new Date().toISOString().split("T")[0],
         amount: "",
-        paymentMethod: "bank_transfer",
+        paymentMode: "bank_transfer",
         bankAccount: "",
         referenceNumber: "",
         party: "",
@@ -196,12 +219,12 @@ const Payments = () => {
     try {
       setIsSubmitting(true);
 
-      if (!formData.entity || !formData.amount || !formData.paymentMethod) {
+      if (!formData.entity || !formData.amount || !formData.paymentMode) {
         toast.error("Please fill all required fields");
         return;
       }
 
-      if (formData.paymentMethod === "bank_transfer" && !formData.bankAccount) {
+      if (formData.paymentMode === "bank_transfer" && !formData.bankAccount) {
         toast.error("Please select a bank account");
         return;
       }
@@ -421,7 +444,6 @@ const Payments = () => {
 
   return (
     <div className={`payments-page ${isSubmitting ? "disabled" : ""}`}>
-
       <div className="page-header">
         <h1>Payments</h1>
 
@@ -485,11 +507,11 @@ const Payments = () => {
 
             <select
               className="filter-select"
-              value={filters.paymentMethod}
+              value={filters.paymentMode}
               onChange={(e) =>
                 setFilters((prev) => ({
                   ...prev,
-                  paymentMethod: e.target.value,
+                  paymentMode: e.target.value,
                 }))
               }
             >
@@ -587,8 +609,8 @@ const Payments = () => {
                     </td>
                     <td>
                       {paymentMethods.find(
-                        (m) => m.value === payment.paymentMethod,
-                      )?.label || payment.paymentMethod}
+                        (m) => m.value === payment.paymentMode,
+                      )?.label || payment.paymentMode}
                     </td>
                     <td>{getStatusBadge(payment.status)}</td>
                     <td className="actions-cell">
@@ -669,6 +691,43 @@ const Payments = () => {
                     </select>
                   </div>
                 </div>
+                {formData.paymentType === "received" && (
+                  <div className="form-group">
+                    <label>Customer *</label>
+                    <select
+                      name="customer"
+                      value={formData.customer || ""}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">Select Customer</option>
+                      {customers.map((c) => (
+                        <option key={c._id} value={c._id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {formData.paymentType === "made" && (
+                  <div className="form-group">
+                    <label>Vendor *</label>
+                    <select
+                      name="vendor"
+                      value={formData.vendor || ""}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">Select Vendor</option>
+                      {vendors.map((v) => (
+                        <option key={v._id} value={v._id}>
+                          {v.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="form-row">
                   <div className="form-group">
@@ -700,8 +759,8 @@ const Payments = () => {
                   <div className="form-group">
                     <label>Payment Method *</label>
                     <select
-                      name="paymentMethod"
-                      value={formData.paymentMethod}
+                      name="paymentMode"
+                      value={formData.paymentMode}
                       onChange={handleChange}
                       required
                     >
@@ -713,14 +772,14 @@ const Payments = () => {
                     </select>
                   </div>
 
-                  {formData.paymentMethod === "bank_transfer" && (
+                  {formData.paymentMode === "bank_transfer" && (
                     <div className="form-group">
-                      <label>Bank Account *</label>
+                      <label>Bank Account</label>
                       <select
                         name="bankAccount"
                         value={formData.bankAccount}
                         onChange={handleChange}
-                        required
+                      
                       >
                         <option value="">Select Bank Account</option>
                         {bankAccounts.map((account) => (
@@ -732,7 +791,7 @@ const Payments = () => {
                     </div>
                   )}
 
-                  {formData.paymentMethod === "cheque" && (
+                  {formData.paymentMode === "cheque" && (
                     <>
                       <div className="form-group">
                         <label>Cheque Number *</label>
@@ -757,7 +816,7 @@ const Payments = () => {
                     </>
                   )}
 
-                  {formData.paymentMethod === "upi" && (
+                  {formData.paymentMode === "upi" && (
                     <div className="form-group">
                       <label>UPI ID *</label>
                       <input

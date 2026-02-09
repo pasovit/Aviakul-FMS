@@ -21,17 +21,6 @@ import {
 import "./Transactions.css";
 import { FiEdit } from "react-icons/fi";
 
-// const CATEGORY_OPTIONS = [
-//   { label: "Salary", value: "salary" },
-//   { label: "Sales", value: "sales" },
-//   { label: "Consulting", value: "consulting" },
-
-//   { label: "Rent", value: "rent" },
-//   { label: "Utilities", value: "utilities" },
-//   { label: "Travel", value: "travel" },
-//   { label: "Purchase", value: "purchase" },
-// ];
-
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [entities, setEntities] = useState([]);
@@ -239,6 +228,20 @@ const Transactions = () => {
     if (isSubmitting) return;
 
     try {
+      if (
+        !formData.entity ||
+        !formData.bankAccount ||
+        !formData.transactionDate ||
+        !formData.type ||
+        !formData.category ||
+        !formData.partyName ||
+        !formData.amount
+      ) {
+        toast.error("Please fill all mandatory fields");
+        setIsSubmitting(false);
+        return;
+      }
+
       setIsSubmitting(true);
 
       const amount = Number(formData.amount) || 0;
@@ -247,9 +250,15 @@ const Transactions = () => {
       const igst = Number(formData.igst) || 0;
       const tds = Number(formData.tdsAmount) || 0;
 
+       if (amount <= 0) {
+        toast.error("Amount must be greater than 0");
+        return;
+      }
+
+
       const totalAmount = amount + cgst + sgst + igst - tds;
 
-      if (totalAmount <= 0) {
+      if (totalAmount < 1) {
         toast.error("Total amount must be greater than 0");
         return;
       }
@@ -892,11 +901,12 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Status</label>
+                  <label>Status *</label>
                   <select
                     name="status"
                     value={formData.status}
                     onChange={handleInputChange}
+                    required
                   >
                     <option value="pending">Pending</option>
                     <option value="paid">Paid</option>
@@ -1091,7 +1101,7 @@ const Transactions = () => {
                                 setNewCategory(cat.name);
                               }}
                             >
-                              <FaEdit/>
+                              <FaEdit />
                             </button>
                             <button
                               className="sub"
@@ -1110,7 +1120,7 @@ const Transactions = () => {
                                 fetchCategories();
                               }}
                             >
-                              <FaTrash/>
+                              <FaTrash />
                             </button>
                           </div>
                         </>
@@ -1188,16 +1198,16 @@ const Transactions = () => {
                           <span>{sub.name}</span>
                           <div className="actions">
                             <button
-                            className="btn-icon"
+                              className="btn-icon"
                               onClick={() => {
                                 setEditingSubCategory(sub._id);
                                 setNewSubCategory(sub.name);
                               }}
                             >
-                              <FaEdit/>
+                              <FaEdit />
                             </button>
-                            <button 
-                             className="btn-icon danger"
+                            <button
+                              className="btn-icon danger"
                               onClick={() =>
                                 subCategoryAPI
                                   .delete(sub._id)
@@ -1206,7 +1216,7 @@ const Transactions = () => {
                                   )
                               }
                             >
-                              <FaTrash/>
+                              <FaTrash />
                             </button>
                           </div>
                         </>

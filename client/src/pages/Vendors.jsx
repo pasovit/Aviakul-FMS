@@ -223,7 +223,25 @@ const Vendors = () => {
     e.preventDefault();
 
     try {
+      if (
+        !formData.entity ||
+        !formData.name ||
+        !formData.address.line1 ||
+        !formData.address.city ||
+        !formData.address.state ||
+        !formData.address.pincode
+      ) {
+        toast.error("Please fill all mandatory fields");
+        return;
+      }
+
       if (editingVendor) {
+        const cleanData = { ...formData };
+
+        if (!cleanData.phone) delete cleanData.phone;
+        if (!cleanData.email) delete cleanData.email;
+        if (!cleanData.alternatePhone) delete cleanData.alternatePhone;
+
         await vendorAPI.update(editingVendor._id, formData);
         toast.success("Vendor updated successfully");
       } else {
@@ -707,7 +725,7 @@ const Vendors = () => {
 
                   {formData.paymentTerms === "custom" && (
                     <div className="form-group">
-                      <label>Custom Days</label>
+                      <label>Custom Days *</label>
                       <input
                         type="number"
                         name="customPaymentDays"
@@ -715,6 +733,7 @@ const Vendors = () => {
                         onChange={handleChange}
                         min="0"
                         max="365"
+                        required
                       />
                     </div>
                   )}
