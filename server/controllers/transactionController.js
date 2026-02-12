@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Transaction = require("../models/Transaction");
 const BankAccount = require("../models/BankAccount");
 const Entity = require("../models/Entity");
@@ -154,39 +155,78 @@ exports.getTransaction = async (req, res, next) => {
 // @route   POST /api/transactions
 // @access  Private (Admin+)
 exports.createTransaction = async (req, res, next) => {
-  try {  
-    
-    // Verify entity exists
-    const entity = await Entity.findById(req.body.entity);
-    if (!entity) {
+  try {
+    const {
+      entity,
+      bankAccount,
+      type,
+      status,
+      totalAmount,
+      transferToAccount,
+    } = req.body;
+
+    if (!entity || !bankAccount || !type || !totalAmount) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(entity)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid entity ID",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(bankAccount)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid bank account ID",
+      });
+    }
+
+    const entityDoc = await Entity.findById(entity);
+    if (!entityDoc) {
       return res.status(404).json({
         success: false,
         message: "Entity not found",
       });
     }
 
-    // Verify bank account exists and belongs to entity
-    const bankAccount = await BankAccount.findById(req.body.bankAccount);
-    if (!bankAccount) {
+    const bankAccountDoc = await BankAccount.findById(bankAccount);
+    if (!bankAccountDoc) {
       return res.status(404).json({
         success: false,
         message: "Bank account not found",
       });
     }
 
-    if (bankAccount.entity.toString() !== req.body.entity) {
+    if (bankAccountDoc.entity.toString() !== entity) {
       return res.status(400).json({
         success: false,
-        message: "Bank account does not belong to the specified entity",
+        message: "Bank account does not belong to this entity",
       });
     }
 
-    // For transfer transactions, verify transfer account
-    if (req.body.type === "transfer" && req.body.transferToAccount) {
-      const transferAccount = await BankAccount.findById(
-        req.body.transferToAccount,
-      );
-      if (!transferAccount) {
+    if (type === "transfer") {
+      if (!transferToAccount) {
+        return res.status(400).json({
+          success: false,
+          message: "Transfer account is required",
+        });
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(transferToAccount)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid transfer account ID",
+        });
+      }
+
+      const transferAccountDoc = await BankAccount.findById(transferToAccount);
+
+      if (!transferAccountDoc) {
         return res.status(404).json({
           success: false,
           message: "Transfer account not found",
@@ -194,36 +234,46 @@ exports.createTransaction = async (req, res, next) => {
       }
     }
 
-    // Set createdBy
+    ["subCategory", "transferToAccount"].forEach((field) => {
+      if (
+        !req.body[field] ||
+        req.body[field] === "" ||
+        !mongoose.Types.ObjectId.isValid(req.body[field])
+      ) {
+        delete req.body[field];
+      }
+    });
+
+    if (Number(totalAmount) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Total amount must be greater than 0",
+      });
+    }
+
     req.body.createdBy = req.user._id;
 
-    // Create transaction
     const transaction = await Transaction.create(req.body);
 
-    // Update bank account balance if transaction is paid
-    if (req.body.status === "paid" || req.body.status === "reconciled") {
+    if (status === "paid" || status === "reconciled") {
       const amountChange =
-        req.body.type === "income"
-          ? transaction.totalAmount
-          : -transaction.totalAmount;
+        type === "income" ? transaction.totalAmount : -transaction.totalAmount;
 
-      await bankAccount.updateBalance(amountChange);
+      await bankAccountDoc.updateBalance(amountChange);
 
-      // If transfer, update the receiving account too
-      if (req.body.type === "transfer" && req.body.transferToAccount) {
-        const transferAccount = await BankAccount.findById(
+      if (type === "transfer" && req.body.transferToAccount) {
+        const transferAccountDoc = await BankAccount.findById(
           req.body.transferToAccount,
         );
-        await transferAccount.updateBalance(transaction.totalAmount);
+
+        await transferAccountDoc.updateBalance(transaction.totalAmount);
       }
     }
 
-    // Populate before returning
     await transaction.populate("entity", "name type");
     await transaction.populate("bankAccount", "accountName accountNumber");
     await transaction.populate("createdBy", "firstName lastName");
 
-    // Log action
     await logAction({
       user: req.user._id,
       action: "create",

@@ -1133,7 +1133,7 @@ const Transactions = () => {
               {/* ================= SUB CATEGORY TAB ================= */}
               {activeTab === "sub" && selectedCategory && (
                 <>
-                  <div className="subcategory-header">
+                  <div className="transaction-subcategory-header">
                     <div>
                       <h4>Sub Categories</h4>
                       <p>

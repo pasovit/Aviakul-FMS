@@ -453,18 +453,10 @@
   gap: 8px;
 }
 
-/* .actions button {
-  padding: 6px 10px;
-  font-size: 14px;
-}
 
-/* Delete button */
-/* .actions button:last-child {
-  background: #e11d48;
-} */ */
 
 /* Sub Category Header */
-.subcategory-header {
+.transaction-subcategory-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
