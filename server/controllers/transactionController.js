@@ -159,47 +159,63 @@ exports.createTransaction = async (req, res, next) => {
     const {
       entity,
       bankAccount,
+      transactionDate,
       type,
-      status,
+      category,
+      partyName,
+      amount,
       totalAmount,
-      transferToAccount,
+      status,
     } = req.body;
 
-    if (!entity || !bankAccount || !type || !totalAmount) {
+    // ===== REQUIRED VALIDATION =====
+    if (
+      !entity ||
+      !bankAccount ||
+      !transactionDate ||
+      !type ||
+      !category ||
+      !partyName ||
+      amount === undefined ||
+      totalAmount === undefined
+    ) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields",
       });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(entity)) {
+    if (Number(amount) <= 0 || Number(totalAmount) <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Invalid entity ID",
+        message: "Amount and total amount must be greater than 0",
       });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(entity)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid entity ID" });
+    }
+
     if (!mongoose.Types.ObjectId.isValid(bankAccount)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid bank account ID",
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid bank account ID" });
     }
 
     const entityDoc = await Entity.findById(entity);
     if (!entityDoc) {
-      return res.status(404).json({
-        success: false,
-        message: "Entity not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Entity not found" });
     }
 
     const bankAccountDoc = await BankAccount.findById(bankAccount);
     if (!bankAccountDoc) {
-      return res.status(404).json({
-        success: false,
-        message: "Bank account not found",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Bank account not found" });
     }
 
     if (bankAccountDoc.entity.toString() !== entity) {
@@ -209,80 +225,29 @@ exports.createTransaction = async (req, res, next) => {
       });
     }
 
-    if (type === "transfer") {
-      if (!transferToAccount) {
-        return res.status(400).json({
-          success: false,
-          message: "Transfer account is required",
-        });
-      }
-
-      if (!mongoose.Types.ObjectId.isValid(transferToAccount)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid transfer account ID",
-        });
-      }
-
-      const transferAccountDoc = await BankAccount.findById(transferToAccount);
-
-      if (!transferAccountDoc) {
-        return res.status(404).json({
-          success: false,
-          message: "Transfer account not found",
-        });
-      }
-    }
-
-    ["subCategory", "transferToAccount"].forEach((field) => {
-      if (
-        !req.body[field] ||
-        req.body[field] === "" ||
-        !mongoose.Types.ObjectId.isValid(req.body[field])
-      ) {
-        delete req.body[field];
-      }
-    });
-
-    if (Number(totalAmount) <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Total amount must be greater than 0",
-      });
-    }
-
     req.body.createdBy = req.user._id;
 
     const transaction = await Transaction.create(req.body);
 
+    // ===== BALANCE UPDATE =====
     if (status === "paid" || status === "reconciled") {
-      const amountChange =
-        type === "income" ? transaction.totalAmount : -transaction.totalAmount;
+      const change =
+        type === "income"
+          ? totalAmount
+          : type === "expense"
+            ? -totalAmount
+            : type === "loan"
+              ? totalAmount
+              : type === "refund"
+                ? totalAmount
+                : 0;
 
-      await bankAccountDoc.updateBalance(amountChange);
-
-      if (type === "transfer" && req.body.transferToAccount) {
-        const transferAccountDoc = await BankAccount.findById(
-          req.body.transferToAccount,
-        );
-
-        await transferAccountDoc.updateBalance(transaction.totalAmount);
-      }
+      await bankAccountDoc.updateBalance(change);
     }
 
     await transaction.populate("entity", "name type");
     await transaction.populate("bankAccount", "accountName accountNumber");
     await transaction.populate("createdBy", "firstName lastName");
-
-    await logAction({
-      user: req.user._id,
-      action: "create",
-      resource: "Transaction",
-      resourceId: transaction._id,
-      entity: transaction.entity._id,
-      changes: { after: transaction },
-      req,
-    });
 
     res.status(201).json({
       success: true,
@@ -298,9 +263,9 @@ exports.createTransaction = async (req, res, next) => {
 // @access  Private (Admin+)
 exports.updateTransaction = async (req, res, next) => {
   try {
-    let transaction = await Transaction.findById(req.params.id)
-      .populate("bankAccount")
-      .populate("transferToAccount");
+    let transaction = await Transaction.findById(req.params.id).populate(
+      "bankAccount",
+    );
 
     if (!transaction) {
       return res.status(404).json({
@@ -309,28 +274,42 @@ exports.updateTransaction = async (req, res, next) => {
       });
     }
 
-    // Store old values for audit
     const oldValues = transaction.toObject();
     const oldStatus = transaction.status;
     const oldAmount = transaction.totalAmount;
     const oldType = transaction.type;
 
-    // If status is changing to/from paid/reconciled, update balances
-    const newStatus = req.body.status || transaction.status;
-    const newAmount = req.body.totalAmount || transaction.totalAmount;
-    const newType = req.body.type || transaction.type;
-
-    // Reverse old balance effect if status was paid/reconciled
-    if (oldStatus === "paid" || oldStatus === "reconciled") {
-      const reverseAmount = oldType === "income" ? -oldAmount : oldAmount;
-      await transaction.bankAccount.updateBalance(reverseAmount);
-
-      if (oldType === "transfer" && transaction.transferToAccount) {
-        await transaction.transferToAccount.updateBalance(-oldAmount);
-      }
+    // Prevent entity change
+    if (
+      req.body.entity &&
+      req.body.entity.toString() !== transaction.entity.toString()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Entity cannot be changed",
+      });
     }
 
-    // Update transaction
+    const newStatus = req.body.status || oldStatus;
+    const newAmount = req.body.totalAmount || oldAmount;
+    const newType = req.body.type || oldType;
+
+    // ===== REVERSE OLD BALANCE =====
+    if (oldStatus === "paid" || oldStatus === "reconciled") {
+      const reverse =
+        oldType === "income"
+          ? -oldAmount
+          : oldType === "expense"
+            ? oldAmount
+            : oldType === "loan"
+              ? -oldAmount
+              : oldType === "refund"
+                ? -oldAmount
+                : 0;
+
+      await transaction.bankAccount.updateBalance(reverse);
+    }
+
     req.body.updatedBy = req.user._id;
 
     transaction = await Transaction.findByIdAndUpdate(req.params.id, req.body, {
@@ -339,26 +318,26 @@ exports.updateTransaction = async (req, res, next) => {
     })
       .populate("entity", "name type")
       .populate("bankAccount", "accountName accountNumber")
-      .populate("transferToAccount", "accountName accountNumber")
       .populate("updatedBy", "firstName lastName");
 
-    // Apply new balance effect if status is paid/reconciled
+    // ===== APPLY NEW BALANCE =====
     if (newStatus === "paid" || newStatus === "reconciled") {
-      const bankAccount = await BankAccount.findById(
-        transaction.bankAccount._id,
-      );
-      const amountChange = newType === "income" ? newAmount : -newAmount;
-      await bankAccount.updateBalance(amountChange);
+      const bank = await BankAccount.findById(transaction.bankAccount._id);
 
-      if (newType === "transfer" && transaction.transferToAccount) {
-        const transferAccount = await BankAccount.findById(
-          transaction.transferToAccount._id,
-        );
-        await transferAccount.updateBalance(newAmount);
-      }
+      const change =
+        newType === "income"
+          ? newAmount
+          : newType === "expense"
+            ? -newAmount
+            : newType === "loan"
+              ? newAmount
+              : newType === "refund"
+                ? newAmount
+                : 0;
+
+      await bank.updateBalance(change);
     }
 
-    // Log action
     await logAction({
       user: req.user._id,
       action: "update",

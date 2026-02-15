@@ -190,6 +190,23 @@ const Customers = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
+    if (name === "creditTerms") {
+      if (value !== "custom") {
+        setFormData((prev) => ({
+          ...prev,
+          creditTerms: value,
+          customCreditDays: "",
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          creditTerms: value,
+        }));
+      }
+      return;
+    }
+
+    // Handle nested fields
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
       setFormData((prev) => ({

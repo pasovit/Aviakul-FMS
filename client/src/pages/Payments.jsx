@@ -219,13 +219,64 @@ const Payments = () => {
     try {
       setIsSubmitting(true);
 
-      if (!formData.entity || !formData.amount || !formData.paymentMode) {
-        toast.error("Please fill all required fields");
+      if (!formData.entity) {
+        toast.error("Entity is required");
         return;
       }
 
-      if (formData.paymentMode === "bank_transfer" && !formData.bankAccount) {
-        toast.error("Please select a bank account");
+      if (!formData.paymentType) {
+        toast.error("Payment type is required");
+        return;
+      }
+
+      if (!formData.paymentDate) {
+        toast.error("Payment date is required");
+        return;
+      }
+
+      if (!formData.amount || parseFloat(formData.amount) <= 0) {
+        toast.error("Amount must be greater than 0");
+        return;
+      }
+
+      if (!formData.paymentMode) {
+        toast.error("Payment method is required");
+        return;
+      }
+
+      if (formData.paymentType === "received" && !formData.customer) {
+        toast.error("Customer is required");
+        return;
+      }
+
+      if (formData.paymentType === "made" && !formData.vendor) {
+        toast.error("Vendor is required");
+        return;
+      }
+
+      if (formData.paymentMode !== "cash" && !formData.bankAccount) {
+        toast.error("Bank account is required for non-cash payments");
+        return;
+      }
+
+      if (formData.paymentMode === "cheque") {
+        if (!formData.chequeNumber) {
+          toast.error("Cheque number is required");
+          return;
+        }
+        if (!formData.chequeDate) {
+          toast.error("Cheque date is required");
+          return;
+        }
+      }
+
+      if (formData.paymentMode === "upi" && !formData.upiId) {
+        toast.error("UPI ID is required");
+        return;
+      }
+
+      if (formData.paymentMode !== "cash" && !formData.bankAccount) {
+        toast.error("Bank account is required for non-cash payments");
         return;
       }
 
@@ -347,6 +398,8 @@ const Payments = () => {
   };
 
   const handleAllocationAmountChange = (invoiceId, amount) => {
+    if (parseFloat(amount) < 0) return;
+
     setAllocationData((prev) => ({
       ...prev,
       allocations: prev.allocations.map((alloc) =>
@@ -749,7 +802,7 @@ const Payments = () => {
                       value={formData.amount}
                       onChange={handleChange}
                       step="0.01"
-                      min="0"
+                      min="0.01"
                       required
                     />
                   </div>
@@ -772,14 +825,14 @@ const Payments = () => {
                     </select>
                   </div>
 
-                  {formData.paymentMode === "bank_transfer" && (
+                  {formData.paymentMode !== "cash" && (
                     <div className="form-group">
                       <label>Bank Account</label>
                       <select
                         name="bankAccount"
                         value={formData.bankAccount}
                         onChange={handleChange}
-                      
+                        required
                       >
                         <option value="">Select Bank Account</option>
                         {bankAccounts.map((account) => (

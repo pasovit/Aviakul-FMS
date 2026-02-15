@@ -333,6 +333,10 @@ const Invoices = () => {
           return;
         }
       }
+      if (new Date(formData.dueDate) < new Date(formData.invoiceDate)) {
+        toast.error("Due date cannot be before invoice date");
+        return;
+      }
 
       setIsSubmitting(true);
 
