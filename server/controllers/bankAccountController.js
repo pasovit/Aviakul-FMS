@@ -10,7 +10,7 @@ exports.getBankAccounts = async (req, res, next) => {
     const { entity, accountType, search } = req.query;
 
     // Build query based on user role
-    let query = {isActive:true};
+    let query = { isActive: true };
 
     // Entity-scoped access for non-admin users
     if (req.user.role === "employee" || req.user.role === "observer") {
@@ -48,7 +48,7 @@ exports.getBankAccounts = async (req, res, next) => {
       .populate("createdBy", "firstName lastName")
       .populate("updatedBy", "firstName lastName")
       .sort({ accountName: 1 });
-    
+
     res.status(200).json({
       success: true,
       count: bankAccounts.length,
@@ -102,6 +102,44 @@ exports.getBankAccount = async (req, res, next) => {
 // @access  Private (Admin+)
 exports.createBankAccount = async (req, res, next) => {
   try {
+    const {
+      entity:Entity,
+      accountName,
+      accountType,
+      accountNumber,
+      bankName,
+      ifscCode,
+      openingBalance,
+      openingBalanceDate,
+    } = req.body;
+
+    // Basic required fields
+    if (!Entity || !accountName || !accountType) {
+      return res.status(400).json({
+        success: false,
+        message: "Entity, account name and account type are required",
+      });
+    }
+
+    // Opening balance validation
+    if (openingBalance === undefined || openingBalance === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Opening balance is required",
+      });
+    }
+
+    // If not cash, validate bank fields
+    if (accountType !== "cash") {
+      if (!accountNumber || !bankName || !ifscCode) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Account number, bank name and IFSC code are required for bank accounts",
+        });
+      }
+    }
+
     // Check if entity exists
     const entity = await Entity.findById(req.body.entity);
     if (!entity) {
@@ -161,7 +199,7 @@ exports.createBankAccount = async (req, res, next) => {
 // @access  Private (Admin+)
 exports.updateBankAccount = async (req, res, next) => {
   try {
-    let bankAccount = await BankAccount.findById(req.params.id);
+    const bankAccount = await BankAccount.findById(req.params.id);
 
     if (!bankAccount) {
       return res.status(404).json({
@@ -170,50 +208,82 @@ exports.updateBankAccount = async (req, res, next) => {
       });
     }
 
-    // Store old values for audit
     const oldValues = bankAccount.toObject();
 
-    // Don't allow updating opening balance if transactions exist
-    if (
-      req.body.openingBalance !== undefined &&
-      req.body.openingBalance !== bankAccount.openingBalance
-    ) {
-      // In Phase 2, we'll check for transactions
-      // For now, allow it
+    //Prevent changing entity
+    if (req.body.entity && req.body.entity.toString() !== bankAccount.entity.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "Entity cannot be changed once created",
+      });
     }
 
-    // Don't allow direct currentBalance updates (must go through transactions)
+    //Prevent direct currentBalance update
     delete req.body.currentBalance;
 
-    // Update fields
+    // Validate accountType logic
+    const accountType = req.body.accountType || bankAccount.accountType;
+
+    if (accountType !== "cash") {
+      const accountNumber = req.body.accountNumber ?? bankAccount.accountNumber;
+      const bankName = req.body.bankName ?? bankAccount.bankName;
+      const ifscCode = req.body.ifscCode ?? bankAccount.ifscCode;
+
+      if (!accountNumber || !bankName || !ifscCode) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Account number, bank name and IFSC code are required for non-cash accounts",
+        });
+      }
+    } else {
+      // If converting to cash → clear bank fields
+      req.body.accountNumber = undefined;
+      req.body.bankName = undefined;
+      req.body.ifscCode = undefined;
+    }
+
+    // Prevent negative opening balance
+    if (req.body.openingBalance !== undefined && req.body.openingBalance < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Opening balance cannot be negative",
+      });
+    }
+
     req.body.updatedBy = req.user._id;
 
-    bankAccount = await BankAccount.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    })
+    const updated = await BankAccount.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    )
       .populate("entity", "name type")
       .populate("updatedBy", "firstName lastName");
 
-    // Log action
     await logAction({
       user: req.user._id,
       action: "update",
       resource: "BankAccount",
-      resourceId: bankAccount._id,
-      entity: bankAccount.entity._id,
-      changes: { before: oldValues, after: bankAccount },
+      resourceId: updated._id,
+      entity: updated.entity._id,
+      changes: { before: oldValues, after: updated },
       req,
     });
 
     res.status(200).json({
       success: true,
-      data: bankAccount,
+      data: updated,
     });
+
   } catch (error) {
     next(error);
   }
 };
+
 
 // @desc    Delete bank account (soft delete)
 // @route   DELETE /api/bank-accounts/:id
@@ -247,7 +317,7 @@ exports.deleteBankAccount = async (req, res, next) => {
       changes: { before: bankAccount },
       req,
     });
-    
+
     res.status(200).json({
       success: true,
       message: "Bank account deactivated successfully",

@@ -1,5 +1,157 @@
+const mongoose = require("mongoose");
 const Vendor = require("../models/Vendor");
-const { logAction } = require("../middleware/audit");
+const Entity = require("../models/Entity");
+const {logAction} = require("../middleware/audit");
+
+exports.createVendor = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // ===== ROLE CHECK =====
+    if (["employee", "observer"].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to create vendor",
+      });
+    }
+
+    const {
+      entity,
+      name,
+      address,
+      pan,
+      gstin,
+      paymentTerms,
+      customPaymentDays,
+    } = req.body;
+
+    // ===== REQUIRED FIELD VALIDATION =====
+    if (!entity || !mongoose.Types.ObjectId.isValid(entity)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid entity is required",
+      });
+    }
+
+    if (!name?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Vendor name is required",
+      });
+    }
+
+    if (
+      !address ||
+      !address.line1 ||
+      !address.city ||
+      !address.state ||
+      !address.pincode
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Complete address is required",
+      });
+    }
+
+    // ===== ENTITY EXISTS CHECK =====
+    const entityExists = await Entity.findById(entity);
+    if (!entityExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Entity not found",
+      });
+    }
+
+    // ===== DUPLICATE NAME CHECK =====
+    const existingVendor = await Vendor.findOne({
+      entity,
+      name: name.trim(),
+      isActive: true,
+    });
+
+    if (existingVendor) {
+      return res.status(400).json({
+        success: false,
+        message: "Vendor with this name already exists for this entity",
+      });
+    }
+
+    // ===== PAN UNIQUE CHECK =====
+    if (pan) {
+      const existingPAN = await Vendor.findOne({
+        entity,
+        pan,
+        isActive: true,
+      });
+
+      if (existingPAN) {
+        return res.status(400).json({
+          success: false,
+          message: "Vendor with this PAN already exists",
+        });
+      }
+    }
+
+    // ===== GST UNIQUE CHECK =====
+    if (gstin) {
+      const existingGST = await Vendor.findOne({
+        entity,
+        gstin,
+        isActive: true,
+      });
+
+      if (existingGST) {
+        return res.status(400).json({
+          success: false,
+          message: "Vendor with this GSTIN already exists",
+        });
+      }
+    }
+
+    // ===== CUSTOM PAYMENT VALIDATION =====
+    if (paymentTerms === "custom" && !customPaymentDays) {
+      return res.status(400).json({
+        success: false,
+        message: "Custom payment days are required",
+      });
+    }
+
+    // ===== REMOVE UNSAFE FIELDS =====
+    delete req.body.vendorCode;
+    delete req.body.currentOutstanding;
+    delete req.body.createdBy;
+
+    const vendor = new Vendor({
+      ...req.body,
+      createdBy: userId,
+    });
+
+    await vendor.save();
+
+    await logAction(
+      userId,
+      "CREATE",
+      "Vendor",
+      vendor._id,
+      null,
+      vendor.toObject(),
+      req,
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Vendor created successfully",
+      data: vendor,
+    });
+  } catch (error) {
+    console.error("Create Vendor Error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 
 // Get all vendors with filters
 exports.getVendors = async (req, res) => {
@@ -91,79 +243,12 @@ exports.getVendor = async (req, res) => {
   }
 };
 
-// Create new vendor
-exports.createVendor = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const userRole = req.user.role;
-
-    // Only admin and accountant can create vendors
-    if (userRole === "employee" || userRole === "observer") {
-      return res.status(403).json({
-        success: false,
-        message: "Insufficient permissions to create vendor",
-      });
-    }
-
-    // Check for duplicate vendor name
-    const existingVendor = await Vendor.findOne({
-      entity: req.body.entity,
-      name: req.body.name,
-      isActive: true,
-    });
-
-    if (existingVendor) {
-      return res.status(400).json({
-        success: false,
-        message: "Vendor with this name already exists for this entity",
-      });
-    }
-
-    // ** CHANGED: use new Vendor() instead of Vendor.create()
-    const vendor = new Vendor({
-      ...req.body,
-      createdBy: userId,
-    });
-
-    // ** CHANGED: save() triggers pre("save") → vendorCode generated
-    await vendor.save();
-
-    // ** OPTIONAL: fix logAction call signature (recommended)
- 
-    await logAction(
-      userId,
-      "CREATE",
-      "Vendor",
-      vendor._id,
-      null,
-      vendor.toObject(),
-      req
-    );;
-
-    res.status(201).json({
-      success: true,
-      message: "Vendor created successfully",
-      data: vendor,
-    });
-  } catch (error) {
-    console.error("Error creating vendor:", error);
-    res.status(400).json({
-      success: false,
-      message: "Failed to create vendor",
-      error: error.message,
-    });
-  }
-};
-
-
-// Update vendor
 exports.updateVendor = async (req, res) => {
   try {
     const userId = req.user._id;
     const userRole = req.user.role;
 
-    // Only admin and accountant can update vendors
-    if (userRole === "employee" || userRole === "observer") {
+    if (["employee", "observer"].includes(userRole)) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to update vendor",
@@ -171,6 +256,7 @@ exports.updateVendor = async (req, res) => {
     }
 
     const vendor = await Vendor.findById(req.params.id);
+
     if (!vendor) {
       return res.status(404).json({
         success: false,
@@ -180,20 +266,92 @@ exports.updateVendor = async (req, res) => {
 
     const oldData = vendor.toObject();
 
-    // Prevent changing currentOutstanding directly
-    if (
-      req.body.currentOutstanding !== undefined &&
-      req.body.currentOutstanding !== vendor.currentOutstanding
-    ) {
+    // ===== BLOCK CRITICAL FIELD MODIFICATION =====
+    if (req.body.currentOutstanding !== undefined) {
       return res.status(400).json({
         success: false,
-        message:
-          "Cannot directly modify outstanding balance. Use invoice/payment operations.",
+        message: "Outstanding balance cannot be modified directly",
       });
     }
 
-    // Update vendor
+    if (req.body.vendorCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Vendor code cannot be modified",
+      });
+    }
+
+    if (
+      req.body.entity &&
+      req.body.entity.toString() !== vendor.entity.toString()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Entity cannot be changed",
+      });
+    }
+
+    // ===== DUPLICATE NAME CHECK (IF CHANGED) =====
+    if (req.body.name && req.body.name !== vendor.name) {
+      const duplicate = await Vendor.findOne({
+        entity: vendor.entity,
+        name: req.body.name,
+        _id: { $ne: vendor._id },
+        isActive: true,
+      });
+
+      if (duplicate) {
+        return res.status(400).json({
+          success: false,
+          message: "Vendor with this name already exists",
+        });
+      }
+    }
+
+    // ===== PAN DUPLICATE CHECK =====
+    if (req.body.pan && req.body.pan !== vendor.pan) {
+      const duplicatePAN = await Vendor.findOne({
+        entity: vendor.entity,
+        pan: req.body.pan,
+        _id: { $ne: vendor._id },
+        isActive: true,
+      });
+
+      if (duplicatePAN) {
+        return res.status(400).json({
+          success: false,
+          message: "Vendor with this PAN already exists",
+        });
+      }
+    }
+
+    // ===== GST DUPLICATE CHECK =====
+    if (req.body.gstin && req.body.gstin !== vendor.gstin) {
+      const duplicateGST = await Vendor.findOne({
+        entity: vendor.entity,
+        gstin: req.body.gstin,
+        _id: { $ne: vendor._id },
+        isActive: true,
+      });
+
+      if (duplicateGST) {
+        return res.status(400).json({
+          success: false,
+          message: "Vendor with this GSTIN already exists",
+        });
+      }
+    }
+
+    // ===== CUSTOM PAYMENT VALIDATION =====
+    if (req.body.paymentTerms === "custom" && !req.body.customPaymentDays) {
+      return res.status(400).json({
+        success: false,
+        message: "Custom payment days are required",
+      });
+    }
+
     Object.assign(vendor, req.body, { updatedBy: userId });
+
     await vendor.save();
 
     await logAction(
@@ -203,7 +361,7 @@ exports.updateVendor = async (req, res) => {
       vendor._id,
       oldData,
       vendor.toObject(),
-      req
+      req,
     );
 
     res.json({
@@ -212,11 +370,10 @@ exports.updateVendor = async (req, res) => {
       data: vendor,
     });
   } catch (error) {
-    console.error("Error updating vendor:", error);
+    console.error("Update Vendor Error:", error);
     res.status(400).json({
       success: false,
-      message: "Failed to update vendor",
-      error: error.message,
+      message: error.message,
     });
   }
 };
@@ -264,7 +421,7 @@ exports.deleteVendor = async (req, res) => {
       vendor._id,
       oldData,
       { isActive: false },
-      req
+      req,
     );
 
     res.json({

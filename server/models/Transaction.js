@@ -241,19 +241,20 @@ transactionSchema.pre("validate", function (next) {
     this.gstDetails.cgst + this.gstDetails.sgst + this.gstDetails.igst;
 
   // Calculate total amount based on transaction type
-  if (this.type === "income") {
-    // For income: Total = Amount + GST - TDS
-    this.totalAmount =
-      this.amount + this.gstDetails.totalGST - this.tdsDetails.amount;
-  } else if (this.type === "expense") {
-    // For expense: Total = Amount + GST
-    this.totalAmount = this.amount + this.gstDetails.totalGST;
-  } else if (this.type === "transfer") {
-    // For transfers: Total = Amount (no GST/TDS)
-    this.totalAmount = this.amount;
-    this.gstDetails.totalGST = 0;
-    this.tdsDetails.amount = 0;
-  }
+     if (this.type === "income") {
+      this.totalAmount =
+        this.amount + this.gstDetails.totalGST - this.tdsDetails.amount;
+
+    } else if (this.type === "expense") {
+      this.totalAmount =
+        this.amount + this.gstDetails.totalGST;
+
+    } else if (this.type === "loan") {
+      this.totalAmount = this.amount;
+
+    } else if (this.type === "refund") {
+      this.totalAmount = this.amount;
+    }
 
   next();
 });

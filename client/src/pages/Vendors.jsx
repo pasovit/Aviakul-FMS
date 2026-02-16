@@ -222,37 +222,100 @@ const Vendors = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      if (
-        !formData.entity ||
-        !formData.name ||
-        !formData.address.line1 ||
-        !formData.address.city ||
-        !formData.address.state ||
-        !formData.address.pincode
-      ) {
-        toast.error("Please fill all mandatory fields");
-        return;
+    const {
+      entity,
+      name,
+      address,
+      pan,
+      gstin,
+      paymentTerms,
+      customPaymentDays,
+      tdsRate,
+      creditLimit,
+      bankDetails,
+    } = formData;
+
+    // ===== REQUIRED FIELDS =====
+    if (!entity) return toast.error("Entity is required");
+    if (!name.trim()) return toast.error("Vendor name is required");
+
+    if (
+      !address.line1.trim() ||
+      !address.city.trim() ||
+      !address.state.trim() ||
+      !address.pincode.trim()
+    ) {
+      return toast.error("Complete address is required");
+    }
+
+    // ===== PINCODE VALIDATION =====
+    if (!/^[0-9]{6}$/.test(address.pincode)) {
+      return toast.error("Pincode must be 6 digits");
+    }
+
+    // ===== PAN VALIDATION =====
+    if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan)) {
+      return toast.error("Invalid PAN format");
+    }
+
+    // ===== GSTIN VALIDATION =====
+    if (
+      gstin &&
+      !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstin)
+    ) {
+      return toast.error("Invalid GSTIN format");
+    }
+
+    // ===== CUSTOM PAYMENT VALIDATION =====
+    if (paymentTerms === "custom") {
+      if (!customPaymentDays) {
+        return toast.error("Custom payment days required");
       }
+      if (customPaymentDays < 0 || customPaymentDays > 365) {
+        return toast.error("Custom payment days must be between 0 and 365");
+      }
+    }
+
+    // ===== TDS VALIDATION =====
+    if (tdsRate < 0 || tdsRate > 30) {
+      return toast.error("TDS rate must be between 0 and 30%");
+    }
+
+    // ===== CREDIT LIMIT VALIDATION =====
+    if (creditLimit < 0) {
+      return toast.error("Credit limit cannot be negative");
+    }
+
+    // ===== IFSC VALIDATION =====
+    if (
+      bankDetails?.ifscCode &&
+      !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankDetails.ifscCode)
+    ) {
+      return toast.error("Invalid IFSC format");
+    }
+
+    try {
+      const cleanData = { ...formData };
+
+      // Remove empty optional fields
+      if (!cleanData.phone) delete cleanData.phone;
+      if (!cleanData.alternatePhone) delete cleanData.alternatePhone;
+      if (!cleanData.email) delete cleanData.email;
+      if (!cleanData.pan) delete cleanData.pan;
+      if (!cleanData.gstin) delete cleanData.gstin;
 
       if (editingVendor) {
-        const cleanData = { ...formData };
-
-        if (!cleanData.phone) delete cleanData.phone;
-        if (!cleanData.email) delete cleanData.email;
-        if (!cleanData.alternatePhone) delete cleanData.alternatePhone;
-
-        await vendorAPI.update(editingVendor._id, formData);
+        await vendorAPI.update(editingVendor._id, cleanData);
         toast.success("Vendor updated successfully");
       } else {
-        await vendorAPI.create(formData);
+        await vendorAPI.create(cleanData);
         toast.success("Vendor created successfully");
       }
+
       handleCloseModal();
       fetchVendors();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to save vendor");
-      console.error(error);
+      toast.error(error.response?.data?.error || "Failed to save vendor");
     }
   };
 
@@ -536,6 +599,7 @@ const Vendors = () => {
                           },
                         })
                       }
+                      required
                     />
                   </div>
 
@@ -552,6 +616,7 @@ const Vendors = () => {
                           },
                         })
                       }
+                      required
                     />
                   </div>
                 </div>
