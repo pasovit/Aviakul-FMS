@@ -5,6 +5,7 @@ import { vendorAPI, entityAPI } from "../services/api";
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
+import RequiredStar from "../components/RequiredStar";
 
 import "./Vendors.css";
 
@@ -14,11 +15,11 @@ const Vendors = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     entity: "",
     category: "",
     isActive: "true",
+    search: "",
   });
 
   const [formData, setFormData] = useState({
@@ -87,21 +88,24 @@ const Vendors = () => {
   ];
 
   useEffect(() => {
-    fetchVendors();
     fetchEntities();
+  }, []);
+
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      fetchVendors();
+    }, 500);
+
+    return () => clearTimeout(delay);
   }, [filters]);
 
   const fetchVendors = async () => {
     try {
       setLoading(true);
-      const response = await vendorAPI.getAll({
-        ...filters,
-        search: searchTerm,
-      });
+      const response = await vendorAPI.getAll(filters);
       setVendors(response.data.data);
     } catch (error) {
       toast.error("Failed to fetch vendors");
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -114,11 +118,6 @@ const Vendors = () => {
     } catch (error) {
       console.error("Failed to fetch entities:", error);
     }
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchVendors();
   };
 
   const handleOpenModal = (vendor = null) => {
@@ -300,7 +299,6 @@ const Vendors = () => {
       // Remove empty optional fields
       if (!cleanData.phone) delete cleanData.phone;
       if (!cleanData.alternatePhone) delete cleanData.alternatePhone;
-      if (!cleanData.email) delete cleanData.email;
       if (!cleanData.pan) delete cleanData.pan;
       if (!cleanData.gstin) delete cleanData.gstin;
 
@@ -354,20 +352,19 @@ const Vendors = () => {
       </div>
 
       <div className="filters-section">
-        <form onSubmit={handleSearch} className="search-form">
+        <form className="search-form">
           <div className="search-input-wrapper">
             <FaSearch className="search-icon" />
             <input
-              type="text"
+              type="search"
               placeholder="Search by name, code, or contact person..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.search}
+              onChange={(e) =>
+                setFilters({ ...filters, search: e.target.value })
+              }
               className="search-input"
             />
           </div>
-          {/* <button type="submit" className="vendor-search">
-            Search
-          </button> */}
 
           <div className="filter-controls">
             <select
@@ -525,7 +522,9 @@ const Vendors = () => {
                 <h3>Basic Information</h3>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Entity *</label>
+                    <label>
+                      Entity <RequiredStar />
+                    </label>
                     <select
                       name="entity"
                       value={formData.entity}
@@ -542,7 +541,9 @@ const Vendors = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Vendor Name *</label>
+                    <label>
+                      Vendor Name <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="name"
@@ -584,7 +585,9 @@ const Vendors = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Phone</label>
+                    <label>
+                      Phone <RequiredStar />
+                    </label>
                     <PhoneInput
                       defaultCountry="in"
                       value={formData.phone}
@@ -604,7 +607,9 @@ const Vendors = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Alternate Phone</label>
+                    <label>
+                      Alternate Phone <RequiredStar />
+                    </label>
                     <PhoneInput
                       defaultCountry="in"
                       value={formData.alternatePhone}
@@ -696,7 +701,9 @@ const Vendors = () => {
               <div className="form-section">
                 <h3>Address</h3>
                 <div className="form-group">
-                  <label>Address Line 1 *</label>
+                  <label>
+                    Address Line 1 <RequiredStar />
+                  </label>
                   <input
                     type="text"
                     name="address.line1"
@@ -720,7 +727,9 @@ const Vendors = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>City *</label>
+                    <label>
+                      City <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="address.city"
@@ -732,7 +741,9 @@ const Vendors = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>State *</label>
+                    <label>
+                      State <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="address.state"
@@ -746,7 +757,9 @@ const Vendors = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Pincode *</label>
+                    <label>
+                      Pincode <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="address.pincode"
@@ -790,7 +803,9 @@ const Vendors = () => {
 
                   {formData.paymentTerms === "custom" && (
                     <div className="form-group">
-                      <label>Custom Days *</label>
+                      <label>
+                        Custom Days <RequiredStar />
+                      </label>
                       <input
                         type="number"
                         name="customPaymentDays"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+import RequiredStar from "../components/RequiredStar";
 
 import {
   FaPlus,
@@ -27,6 +28,7 @@ const Invoices = () => {
     invoiceType: "",
     status: "",
     agingBucket: "",
+    search: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -67,20 +69,21 @@ const Invoices = () => {
     { value: "90+", label: "90+ Days" },
   ];
 
-  useEffect(() => {
-    fetchInvoices();
+   useEffect(() => {
     fetchEntities();
     fetchCustomers();
     fetchVendors();
+  }, []);
+
+  useEffect(() => {
+    fetchInvoices();
   }, [filters]);
+  
 
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const response = await invoiceAPI.getAll({
-        ...filters,
-        search: searchTerm,
-      });
+      const response = await invoiceAPI.getAll(filters);
       setInvoices(response.data.data);
     } catch (error) {
       toast.error("Failed to fetch invoices");
@@ -115,11 +118,6 @@ const Invoices = () => {
     } catch (error) {
       console.error("Failed to fetch vendors:", error);
     }
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchInvoices();
   };
 
   const calculateDueDate = (invoiceDate, type, partyId) => {
@@ -255,20 +253,6 @@ const Invoices = () => {
       }));
     }
   };
-
-  // const calculateTotals = () => {
-  //   const subtotal = formData.lineItems.reduce((sum, item) => {
-  //     return sum + item.quantity * item.rate;
-  //   }, 0);
-
-  //   const taxTotal = formData.lineItems.reduce((sum, item) => {
-  //     return sum + (item.quantity * item.rate * item.taxRate) / 100;
-  //   }, 0);
-
-  //   const total = subtotal + taxTotal - formData.tdsAmount + formData.roundOff;
-
-  //   return { subtotal, taxTotal, total };
-  // };
 
   const calculateTotals = () => {
     const subtotal = formData.lineItems.reduce(
@@ -455,20 +439,20 @@ const Invoices = () => {
       </div>
 
       <div className="filters-section">
-        <form onSubmit={handleSearch} className="search-form">
+        <form className="search-form">
           <div className="search-input-wrapper">
             <FaSearch className="search-icon" />
             <input
-              type="text"
+              type="search"
               placeholder="Search by invoice number..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.search}
+               onChange={(e) =>
+                setFilters({ ...filters, search: e.target.value })
+              }
               className="search-input"
             />
           </div>
-          {/* <button type="submit" className="invoice-search">
-            Search
-          </button> */}
+         
           <div className="filter-controls">
             <select
               value={filters.entity}
@@ -652,7 +636,9 @@ const Invoices = () => {
                 <h3>Invoice Details</h3>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Entity *</label>
+                    <label>
+                      Entity <RequiredStar />
+                    </label>
                     <select
                       name="entity"
                       value={formData.entity}
@@ -669,7 +655,9 @@ const Invoices = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Invoice Type *</label>
+                    <label>
+                      Invoice Type <RequiredStar />
+                    </label>
                     <select
                       name="invoiceType"
                       value={formData.invoiceType}
@@ -685,7 +673,9 @@ const Invoices = () => {
                 <div className="form-row">
                   {formData.invoiceType === "sales" ? (
                     <div className="form-group">
-                      <label>Customer *</label>
+                      <label>
+                        Customer <RequiredStar />
+                      </label>
                       <select
                         name="customer"
                         value={formData.customer}
@@ -702,7 +692,9 @@ const Invoices = () => {
                     </div>
                   ) : (
                     <div className="form-group">
-                      <label>Vendor *</label>
+                      <label>
+                        Vendor <RequiredStar />
+                      </label>
                       <select
                         name="vendor"
                         value={formData.vendor}
@@ -720,7 +712,9 @@ const Invoices = () => {
                   )}
 
                   <div className="form-group">
-                    <label>Invoice Date *</label>
+                    <label>
+                      Invoice Date <RequiredStar />
+                    </label>
                     <input
                       type="date"
                       name="invoiceDate"
@@ -731,7 +725,9 @@ const Invoices = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Due Date *</label>
+                    <label>
+                      Due Date <RequiredStar />
+                    </label>
                     <input
                       type="date"
                       name="dueDate"
@@ -759,12 +755,21 @@ const Invoices = () => {
                   <table>
                     <thead>
                       <tr>
-                        <th style={{ width: "35%" }}>Description</th>
-                        <th style={{ width: "10%" }}>Qty</th>
+                        <th style={{ width: "35%" }}>
+                          Description <RequiredStar />
+                        </th>
+                        <th style={{ width: "10%" }}>
+                          Qty <RequiredStar />
+                        </th>
                         <th style={{ width: "10%" }}>Unit</th>
-                        <th style={{ width: "15%" }}>Rate</th>
+                        <th style={{ width: "15%" }}>
+                          Rate
+                          <RequiredStar />
+                        </th>
                         <th style={{ width: "10%" }}>Tax %</th>
-                        <th style={{ width: "15%" }}>Amount</th>
+                        <th style={{ width: "15%" }}>
+                          Amount <RequiredStar />
+                        </th>
                         <th style={{ width: "5%" }}></th>
                       </tr>
                     </thead>

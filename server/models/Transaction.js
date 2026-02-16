@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const Counter = require("./Counter");
 
-
 const transactionSchema = new mongoose.Schema(
   {
     entity: {
@@ -47,6 +46,7 @@ const transactionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "SubCategory",
       index: true,
+      default: null,
     },
 
     partyName: {
@@ -215,11 +215,19 @@ const transactionSchema = new mongoose.Schema(
 
 // Compound indexes for efficient queries
 transactionSchema.index({ entity: 1, transactionDate: -1 });
+transactionSchema.index({ entity: 1, status: 1, transactionDate: -1 });
 transactionSchema.index({ bankAccount: 1, transactionDate: -1 });
-transactionSchema.index({ entity: 1, type: 1, status: 1 });
-transactionSchema.index({ transactionDate: -1, status: 1 });
 transactionSchema.index({ category: 1, transactionDate: -1 });
-transactionSchema.index({ partyName: 1, transactionDate: -1 });
+transactionSchema.index({ subCategory: 1, transactionDate: -1 });
+transactionSchema.index({ type: 1, transactionDate: -1 });
+transactionSchema.index({ status: 1, transactionDate: -1 });
+transactionSchema.index({ transactionDate: -1 });
+transactionSchema.index({
+  partyName: "text",
+  invoiceNumber: "text",
+  referenceNumber: "text",
+  notes: "text",
+});
 
 // Virtual for net amount (amount after GST and TDS)
 transactionSchema.virtual("netAmount").get(function () {
@@ -241,20 +249,16 @@ transactionSchema.pre("validate", function (next) {
     this.gstDetails.cgst + this.gstDetails.sgst + this.gstDetails.igst;
 
   // Calculate total amount based on transaction type
-     if (this.type === "income") {
-      this.totalAmount =
-        this.amount + this.gstDetails.totalGST - this.tdsDetails.amount;
-
-    } else if (this.type === "expense") {
-      this.totalAmount =
-        this.amount + this.gstDetails.totalGST;
-
-    } else if (this.type === "loan") {
-      this.totalAmount = this.amount;
-
-    } else if (this.type === "refund") {
-      this.totalAmount = this.amount;
-    }
+  if (this.type === "income") {
+    this.totalAmount =
+      this.amount + this.gstDetails.totalGST - this.tdsDetails.amount;
+  } else if (this.type === "expense") {
+    this.totalAmount = this.amount + this.gstDetails.totalGST;
+  } else if (this.type === "loan") {
+    this.totalAmount = this.amount;
+  } else if (this.type === "refund") {
+    this.totalAmount = this.amount;
+  }
 
   next();
 });
@@ -362,7 +366,7 @@ transactionSchema.pre("validate", async function (next) {
         year,
       },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
 
     this.transactionCode = `TRX-${year}-${String(counter.seq).padStart(4, "0")}`;
@@ -372,7 +376,6 @@ transactionSchema.pre("validate", async function (next) {
     next(error);
   }
 });
-
 
 // Ensure virtuals are included in JSON
 transactionSchema.set("toJSON", { virtuals: true });

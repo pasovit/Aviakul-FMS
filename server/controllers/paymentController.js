@@ -233,6 +233,9 @@ exports.createPayment = async (req, res) => {
         new Date(paymentDate),
       );
     }
+    if (req.body.vendor === "") req.body.vendor = undefined;
+    if (req.body.customer === "") req.body.customer = undefined;
+    if (req.body.bankAccount === "") req.body.bankAccount = undefined;
 
     const payment = await Payment.create({
       ...req.body,
@@ -267,10 +270,10 @@ exports.createPayment = async (req, res) => {
       data: payment,
     });
   } catch (error) {
+    console.log(error);
     res.status(400).json({
       success: false,
-      message: "Failed to create payment",
-      error: error.message,
+      message: error.message || "Failed to create payment",
     });
   }
 };

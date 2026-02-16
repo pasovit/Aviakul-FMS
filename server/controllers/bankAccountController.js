@@ -103,7 +103,7 @@ exports.getBankAccount = async (req, res, next) => {
 exports.createBankAccount = async (req, res, next) => {
   try {
     const {
-      entity:Entity,
+      entity,
       accountName,
       accountType,
       accountNumber,
@@ -114,7 +114,7 @@ exports.createBankAccount = async (req, res, next) => {
     } = req.body;
 
     // Basic required fields
-    if (!Entity || !accountName || !accountType) {
+    if (!entity || !accountName || !accountType) {
       return res.status(400).json({
         success: false,
         message: "Entity, account name and account type are required",
@@ -141,8 +141,9 @@ exports.createBankAccount = async (req, res, next) => {
     }
 
     // Check if entity exists
-    const entity = await Entity.findById(req.body.entity);
-    if (!entity) {
+    const entityDoc = await Entity.findById(entity);
+
+    if (!entityDoc) {
       return res.status(404).json({
         success: false,
         message: "Entity not found",
@@ -211,7 +212,10 @@ exports.updateBankAccount = async (req, res, next) => {
     const oldValues = bankAccount.toObject();
 
     //Prevent changing entity
-    if (req.body.entity && req.body.entity.toString() !== bankAccount.entity.toString()) {
+    if (
+      req.body.entity &&
+      req.body.entity.toString() !== bankAccount.entity.toString()
+    ) {
       return res.status(400).json({
         success: false,
         message: "Entity cannot be changed once created",
@@ -259,7 +263,7 @@ exports.updateBankAccount = async (req, res, next) => {
       {
         new: true,
         runValidators: true,
-      }
+      },
     )
       .populate("entity", "name type")
       .populate("updatedBy", "firstName lastName");
@@ -278,12 +282,10 @@ exports.updateBankAccount = async (req, res, next) => {
       success: true,
       data: updated,
     });
-
   } catch (error) {
     next(error);
   }
 };
-
 
 // @desc    Delete bank account (soft delete)
 // @route   DELETE /api/bank-accounts/:id

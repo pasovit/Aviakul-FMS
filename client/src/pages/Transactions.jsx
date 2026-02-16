@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+import RequiredStar from "../components/RequiredStar";
+
 import {
   FaPlus,
   FaEdit,
@@ -20,6 +22,19 @@ import {
 } from "../services/api";
 import "./Transactions.css";
 import { FiEdit } from "react-icons/fi";
+
+const defaultFilters = {
+  entity: "",
+  bankAccount: "",
+  type: "",
+  category: "",
+  status: "",
+  startDate: "",
+  endDate: "",
+  search: "",
+  page: 1,
+  limit: 20,
+};
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -54,18 +69,9 @@ const Transactions = () => {
 
   const [activeTab, setActiveTab] = useState("category");
 
-  const [filters, setFilters] = useState({
-    entity: "",
-    bankAccount: "",
-    type: "",
-    category: "",
-    status: "",
-    startDate: "",
-    endDate: "",
-    search: "",
-    page: 1,
-    limit: 20,
-  });
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [filters, setFilters] = useState(defaultFilters);
 
   const [formData, setFormData] = useState({
     entity: "",
@@ -73,6 +79,7 @@ const Transactions = () => {
     transactionDate: new Date().toISOString().split("T")[0],
     type: "expense",
     category: "",
+    subCategory: "",
     partyName: "",
     partyPAN: "",
     partyGSTIN: "",
@@ -93,11 +100,26 @@ const Transactions = () => {
   });
 
   useEffect(() => {
-    fetchTransactions();
     fetchEntities();
     fetchBankAccounts();
     fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    fetchTransactions();
   }, [filters]);
+
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      setFilters((prev) => ({
+        ...prev,
+        search: searchTerm,
+        page: 1,
+      }));
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm]);
 
   const fetchCategories = async () => {
     const res = await categoryAPI.getAll();
@@ -167,6 +189,7 @@ const Transactions = () => {
       transactionDate: new Date().toISOString().split("T")[0],
       type: "expense",
       category: "",
+      subCategory: "",
       partyName: "",
       partyPAN: "",
       partyGSTIN: "",
@@ -197,7 +220,9 @@ const Transactions = () => {
       bankAccount: transaction.bankAccount?._id || "",
       transactionDate: transaction.transactionDate.split("T")[0],
       type: transaction.type,
-      category: transaction.category,
+      category: transaction.category?._id || "",
+      subCategory: transaction.subCategory?._id || "",
+
       partyName: transaction.partyName || "",
       partyPAN: transaction.partyPAN || "",
       partyGSTIN: transaction.partyGSTIN || "",
@@ -250,11 +275,10 @@ const Transactions = () => {
       const igst = Number(formData.igst) || 0;
       const tds = Number(formData.tdsAmount) || 0;
 
-       if (amount <= 0) {
+      if (amount <= 0) {
         toast.error("Amount must be greater than 0");
         return;
       }
-
 
       const totalAmount = amount + cgst + sgst + igst - tds;
 
@@ -265,6 +289,7 @@ const Transactions = () => {
 
       const submitData = {
         ...formData,
+        subCategory: formData.subCategory || null,
         amount,
         gstDetails: { cgst, sgst, igst },
         tdsDetails: {
@@ -486,9 +511,9 @@ const Transactions = () => {
     fetchSubCategories(selectedCategoryForSub);
   };
 
-  if (loading) {
-    return <div className="loading">Loading transactions...</div>;
-  }
+  // if (loading) {
+  //   return <div className="loading">Loading transactions...</div>;
+  // }
 
   return (
     <div
@@ -502,7 +527,13 @@ const Transactions = () => {
         <div className="header-actions">
           <button
             className="transaction-show-filters"
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={() => {
+              if (showFilters) {
+                setFilters(defaultFilters);
+                setSearchTerm("");
+              }
+              setShowFilters(!showFilters);
+            }}
           >
             <FaFilter /> Filters
           </button>
@@ -519,10 +550,7 @@ const Transactions = () => {
           <button className="transaction-export" onClick={handleExportCSV}>
             <FaFileExcel /> Export CSV
           </button>
-          {/* 
-          <button className="transaction-export" onClick={handleExport}>
-            <FaFileExcel /> Export.xlsx
-          </button> */}
+
           <button
             className="add-transaction"
             onClick={() => setShowModal(true)}
@@ -536,12 +564,13 @@ const Transactions = () => {
         <div className="filters-panel">
           <div className="filters-grid">
             <input
-              type="text"
+              type="search"
               name="search"
               placeholder="Search..."
-              value={filters.search}
-              onChange={handleFilterChange}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
+
             <select
               name="entity"
               value={filters.entity}
@@ -562,7 +591,8 @@ const Transactions = () => {
               <option value="">All Types</option>
               <option value="income">Income</option>
               <option value="expense">Expense</option>
-              <option value="transfer">Transfer</option>
+              <option value="loan">Loan</option>
+              <option value="refund">Refund</option>
             </select>
             <select
               name="status"
@@ -573,7 +603,6 @@ const Transactions = () => {
               <option value="pending">Pending</option>
               <option value="paid">Paid</option>
               <option value="cancelled">Cancelled</option>
-              <option value="reconciled">Reconciled</option>
             </select>
             <input
               type="date"
@@ -613,91 +642,108 @@ const Transactions = () => {
           </button>
         </div>
       )}
-
-      <div className="transactions-table-container">
-        <table className="transactions-table">
-          <thead>
-            <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedIds(transactions.map((t) => t._id));
-                    } else {
-                      setSelectedIds([]);
-                    }
-                  }}
-                />
-              </th>
-              <th>Date</th>
-              <th>Entity</th>
-              <th>Type</th>
-              <th>Category</th>
-              <th>Party</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((txn) => (
-              <tr key={txn._id}>
-                <td>
+      {loading ? (
+        <div className="loading">Loading transactions...</div>
+      ) : (
+        <div className="transactions-table-container">
+          <table className="transactions-table">
+            <thead>
+              <tr>
+                <th>
                   <input
                     type="checkbox"
-                    checked={selectedIds.includes(txn._id)}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedIds([...selectedIds, txn._id]);
+                        setSelectedIds(transactions.map((t) => t._id));
                       } else {
-                        setSelectedIds(
-                          selectedIds.filter((id) => id !== txn._id),
-                        );
+                        setSelectedIds([]);
                       }
                     }}
                   />
-                </td>
-                <td>{formatDate(txn.transactionDate)}</td>
-                <td>{txn.entity?.name}</td>
-                <td>
-                  <span className={`badge ${getTypeBadge(txn.type)}`}>
-                    {txn.type}
-                  </span>
-                </td>
-                <td>{txn.category?.name}</td>
-                <td>{txn.partyName}</td>
-                <td
-                  className={
-                    txn.type === "expense"
-                      ? "amount-negative"
-                      : "amount-positive"
-                  }
-                >
-                  {formatCurrency(txn.totalAmount)}
-                </td>
-                <td>
-                  <span className={`badge ${getStatusBadge(txn.status)}`}>
-                    {txn.status}
-                  </span>
-                </td>
-                <td className="actions-cell">
-                  <button className="btn-icon" onClick={() => handleEdit(txn)}>
-                    <FiEdit />
-                  </button>
-                  <button
-                    className="btn-icon danger"
-                    title="Delete"
-                    onClick={() => handleDelete(txn._id)}
-                  >
-                    <FaTrash />
-                  </button>
-                </td>
+                </th>
+                <th>Date</th>
+                <th>Entity</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th>Party</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {transactions?.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="empty-cell">
+                    <div className="empty-state">
+                      <h3>No Transactions Found</h3>
+                      <p>Try adjusting filters or create a new transaction.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                transactions.map((txn) => (
+                  <tr key={txn._id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(txn._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds([...selectedIds, txn._id]);
+                          } else {
+                            setSelectedIds(
+                              selectedIds.filter((id) => id !== txn._id),
+                            );
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>{formatDate(txn.transactionDate)}</td>
+                    <td>{txn.entity?.name}</td>
+                    <td>
+                      <span className={`badge ${getTypeBadge(txn.type)}`}>
+                        {txn.type}
+                      </span>
+                    </td>
+                    <td>{txn.category?.name}</td>
+                    <td>{txn.partyName}</td>
+                    <td
+                      className={
+                        txn.type === "expense"
+                          ? "amount-negative"
+                          : "amount-positive"
+                      }
+                    >
+                      {formatCurrency(txn.totalAmount)}
+                    </td>
+                    <td>
+                      <span className={`badge ${getStatusBadge(txn.status)}`}>
+                        {txn.status}
+                      </span>
+                    </td>
+                    <td className="actions-cell">
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleEdit(txn)}
+                      >
+                        <FiEdit />
+                      </button>
+                      <button
+                        className="btn-icon danger"
+                        title="Delete"
+                        onClick={() => handleDelete(txn._id)}
+                      >
+                        <FaTrash />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {pagination.totalPages > 1 && (
         <div className="pagination">
@@ -753,7 +799,9 @@ const Transactions = () => {
             <form onSubmit={handleSubmit} className="transaction-form">
               <div className="form-grid">
                 <div className="form-group">
-                  <label>Entity *</label>
+                  <label>
+                    Entity <RequiredStar />
+                  </label>
                   <select
                     name="entity"
                     value={formData.entity}
@@ -770,7 +818,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Bank Account *</label>
+                  <label>
+                    Bank Account <RequiredStar />
+                  </label>
                   <select
                     name="bankAccount"
                     value={formData.bankAccount}
@@ -789,7 +839,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Date *</label>
+                  <label>
+                    Date <RequiredStar />
+                  </label>
                   <input
                     type="date"
                     name="transactionDate"
@@ -800,7 +852,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Type *</label>
+                  <label>
+                    Type <RequiredStar />
+                  </label>
                   <select
                     name="type"
                     value={formData.type}
@@ -816,7 +870,7 @@ const Transactions = () => {
 
                 <div className="form-group">
                   <label>
-                    Category *
+                    Category <RequiredStar />
                     <FaCog
                       style={{ marginLeft: 8, cursor: "pointer" }}
                       onClick={() => setShowCategoryModal(true)}
@@ -862,7 +916,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Party Name *</label>
+                  <label>
+                    Party Name <RequiredStar />
+                  </label>
                   <input
                     type="text"
                     name="partyName"
@@ -873,7 +929,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Amount *</label>
+                  <label>
+                    Amount <RequiredStar />
+                  </label>
                   <input
                     type="number"
                     name="amount"
@@ -901,7 +959,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Status *</label>
+                  <label>
+                    Status <RequiredStar />
+                  </label>
                   <select
                     name="status"
                     value={formData.status}

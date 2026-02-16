@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Transaction = require("../models/Transaction");
 const BankAccount = require("../models/BankAccount");
+const SubCategory = require("../models/SubCategory");
 const Entity = require("../models/Entity");
 const { logAction } = require("../middleware/audit");
 const xlsx = require("xlsx");
@@ -18,6 +19,7 @@ exports.getTransactions = async (req, res, next) => {
       bankAccount,
       type,
       category,
+      subCategory,
       status,
       startDate,
       endDate,
@@ -28,12 +30,10 @@ exports.getTransactions = async (req, res, next) => {
       sortOrder = "desc",
     } = req.query;
 
-    // Build query based on user role
     let query = {};
 
-    // Entity-scoped access for non-admin users
     if (req.user.role === "employee" || req.user.role === "observer") {
-      if (req.user.assignedEntities && req.user.assignedEntities.length > 0) {
+      if (req.user.assignedEntities?.length > 0) {
         query.entity = { $in: req.user.assignedEntities };
       } else {
         return res.status(200).json({
@@ -45,39 +45,33 @@ exports.getTransactions = async (req, res, next) => {
       }
     }
 
-    // Apply filters
     if (entity) query.entity = entity;
     if (bankAccount) query.bankAccount = bankAccount;
     if (type) query.type = type;
     if (category) query.category = category;
+    if (subCategory) query.subCategory = subCategory;
     if (status) query.status = status;
 
-    // Date range filter
     if (startDate || endDate) {
       query.transactionDate = {};
       if (startDate) query.transactionDate.$gte = new Date(startDate);
-      if (endDate) query.transactionDate.$lte = new Date(endDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.transactionDate.$lte = end;
+      }
     }
 
-    // Search in party name, invoice number, reference number
-    if (search) {
-      query.$or = [
-        { partyName: { $regex: search, $options: "i" } },
-        { invoiceNumber: { $regex: search, $options: "i" } },
-        { referenceNumber: { $regex: search, $options: "i" } },
-        { notes: { $regex: search, $options: "i" } },
-      ];
+    if (search && search.trim() !== "") {
+      query.$text = { $search: search.trim() };
     }
 
-    // Pagination
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    // Count total documents
     const total = await Transaction.countDocuments(query);
 
-    // Execute query with pagination
     const transactions = await Transaction.find(query)
       .populate("entity", "name type")
       .populate("bankAccount", "accountName accountNumber bankName")
@@ -90,7 +84,6 @@ exports.getTransactions = async (req, res, next) => {
       .skip(skip)
       .limit(limitNum);
 
-    // Pagination info
     const pagination = {
       currentPage: pageNum,
       totalPages: Math.ceil(total / limitNum),
@@ -162,6 +155,7 @@ exports.createTransaction = async (req, res, next) => {
       transactionDate,
       type,
       category,
+      subCategory,
       partyName,
       amount,
       totalAmount,
@@ -183,6 +177,30 @@ exports.createTransaction = async (req, res, next) => {
         success: false,
         message: "Missing required fields",
       });
+    }
+
+    if (subCategory && !mongoose.Types.ObjectId.isValid(subCategory)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid sub category ID",
+      });
+    }
+    if (subCategory) {
+      const subCategoryDoc = await SubCategory.findById(subCategory);
+
+      if (!subCategoryDoc) {
+        return res.status(404).json({
+          success: false,
+          message: "Sub category not found",
+        });
+      }
+
+      if (subCategoryDoc.category.toString() !== category) {
+        return res.status(400).json({
+          success: false,
+          message: "Sub category does not belong to this category",
+        });
+      }
     }
 
     if (Number(amount) <= 0 || Number(totalAmount) <= 0) {
@@ -227,6 +245,10 @@ exports.createTransaction = async (req, res, next) => {
 
     req.body.createdBy = req.user._id;
 
+    if (req.body.subCategory === "") {
+      req.body.subCategory = null;
+    }
+
     const transaction = await Transaction.create(req.body);
 
     // ===== BALANCE UPDATE =====
@@ -248,6 +270,7 @@ exports.createTransaction = async (req, res, next) => {
     await transaction.populate("entity", "name type");
     await transaction.populate("bankAccount", "accountName accountNumber");
     await transaction.populate("createdBy", "firstName lastName");
+    await transaction.populate("subCategory", "name");
 
     res.status(201).json({
       success: true,
@@ -312,13 +335,45 @@ exports.updateTransaction = async (req, res, next) => {
 
     req.body.updatedBy = req.user._id;
 
+    if (req.body.subCategory) {
+      if (!mongoose.Types.ObjectId.isValid(req.body.subCategory)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid sub category ID",
+        });
+      }
+
+      const subCategoryDoc = await SubCategory.findById(req.body.subCategory);
+
+      if (!subCategoryDoc) {
+        return res.status(404).json({
+          success: false,
+          message: "Sub category not found",
+        });
+      }
+
+      if (
+        req.body.category &&
+        subCategoryDoc.category.toString() !== req.body.category
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Sub category does not belong to this category",
+        });
+      }
+    }
+    if (req.body.subCategory === "") {
+      req.body.subCategory = null;
+    }
+
     transaction = await Transaction.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
     })
       .populate("entity", "name type")
       .populate("bankAccount", "accountName accountNumber")
-      .populate("updatedBy", "firstName lastName");
+      .populate("updatedBy", "firstName lastName")
+      .populate("subCategory", "name");
 
     // ===== APPLY NEW BALANCE =====
     if (newStatus === "paid" || newStatus === "reconciled") {
