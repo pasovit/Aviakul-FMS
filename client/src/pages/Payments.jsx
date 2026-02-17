@@ -57,6 +57,7 @@ const Payments = () => {
     chequeNumber: "",
     chequeDate: "",
     upiId: "",
+    status: "pending",
   });
 
   const [allocationData, setAllocationData] = useState({
@@ -77,7 +78,7 @@ const Payments = () => {
   const statusOptions = [
     { value: "pending", label: "Pending", color: "#ffc107" },
     { value: "cleared", label: "Cleared", color: "#28a745" },
-    { value: "failed", label: "Failed", color: "#dc3545" },
+    { value: "bounced", label: "Bounced", color: "#dc3545" },
     { value: "cancelled", label: "Cancelled", color: "#6c757d" },
   ];
 
@@ -174,6 +175,7 @@ const Payments = () => {
         chequeNumber: payment.chequeNumber || "",
         chequeDate: payment.chequeDate?.split("T")[0] || "",
         upiId: payment.upiId || "",
+        status: payment.status || "pending",
       });
     } else {
       setEditingPayment(null);
@@ -193,6 +195,7 @@ const Payments = () => {
         chequeNumber: "",
         chequeDate: "",
         upiId: "",
+        status: "pending",
       });
     }
     setShowModal(true);
@@ -843,6 +846,20 @@ const Payments = () => {
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Status</label>
+                      <select name="status" value={formData.status} onChange={handleChange}>
+                        <option value="">All Status</option>
+                        {statusOptions.map((status) => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   {formData.paymentMode !== "cash" && (
