@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+import RequiredStar from "../components/RequiredStar";
+
 import {
   FaPlus,
   FaEdit,
@@ -33,12 +35,12 @@ const Payments = () => {
   const [showModal, setShowModal] = useState(false);
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     entity: "",
     paymentType: "",
     status: "",
     paymentMode: "",
+    search: "",
   });
 
   const [formData, setFormData] = useState({
@@ -51,12 +53,11 @@ const Payments = () => {
     paymentMode: "cash",
     bankAccount: "",
     referenceNumber: "",
-    party: "",
-    partyName: "",
     notes: "",
     chequeNumber: "",
     chequeDate: "",
     upiId: "",
+    status: "pending",
   });
 
   const [allocationData, setAllocationData] = useState({
@@ -77,25 +78,25 @@ const Payments = () => {
   const statusOptions = [
     { value: "pending", label: "Pending", color: "#ffc107" },
     { value: "cleared", label: "Cleared", color: "#28a745" },
-    { value: "failed", label: "Failed", color: "#dc3545" },
+    { value: "bounced", label: "Bounced", color: "#dc3545" },
     { value: "cancelled", label: "Cancelled", color: "#6c757d" },
   ];
 
   useEffect(() => {
-    fetchPayments();
     fetchEntities();
     fetchBankAccounts();
     fetchCustomers();
     fetchVendors();
+  }, []);
+
+  useEffect(() => {
+    fetchPayments();
   }, [filters]);
 
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      const response = await paymentAPI.getAll({
-        ...filters,
-        search: searchTerm,
-      });
+      const response = await paymentAPI.getAll(filters);
       console.log(response.data.data);
       setPayments(response.data.data);
     } catch (error) {
@@ -157,11 +158,6 @@ const Payments = () => {
     }
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchPayments();
-  };
-
   const handleOpenModal = (payment = null) => {
     if (payment) {
       setEditingPayment(payment);
@@ -169,25 +165,28 @@ const Payments = () => {
         entity: payment.entity._id || payment.entity,
         paymentType: payment.paymentType,
         paymentDate: payment.paymentDate.split("T")[0],
+        customer: payment.customer?._id || payment.customer || "",
+        vendor: payment.vendor?._id || payment.vendor || "",
         amount: payment.amount,
         paymentMode: payment.paymentMode,
         bankAccount: payment.bankAccount?._id || payment.bankAccount || "",
         referenceNumber: payment.referenceNumber || "",
-        party: payment.party || "",
-        partyName: payment.partyName || "",
         notes: payment.notes || "",
         chequeNumber: payment.chequeNumber || "",
         chequeDate: payment.chequeDate?.split("T")[0] || "",
         upiId: payment.upiId || "",
+        status: payment.status || "pending",
       });
     } else {
       setEditingPayment(null);
       setFormData({
         entity: "",
         paymentType: "received",
+        customer: "",
+        vendor: "",
         paymentDate: new Date().toISOString().split("T")[0],
         amount: "",
-        paymentMode: "bank_transfer",
+        paymentMode: "cash",
         bankAccount: "",
         referenceNumber: "",
         party: "",
@@ -196,6 +195,7 @@ const Payments = () => {
         chequeNumber: "",
         chequeDate: "",
         upiId: "",
+        status: "pending",
       });
     }
     setShowModal(true);
@@ -275,15 +275,21 @@ const Payments = () => {
         return;
       }
 
-      if (formData.paymentMode !== "cash" && !formData.bankAccount) {
-        toast.error("Bank account is required for non-cash payments");
-        return;
-      }
-
       const payload = {
         ...formData,
         amount: parseFloat(formData.amount),
       };
+
+      if (!payload.customer) delete payload.customer;
+      if (!payload.vendor) delete payload.vendor;
+      if (!payload.bankAccount) delete payload.bankAccount;
+
+      // Remove optional empty fields
+      if (!payload.chequeNumber) delete payload.chequeNumber;
+      if (!payload.chequeDate) delete payload.chequeDate;
+      if (!payload.upiId) delete payload.upiId;
+      if (!payload.referenceNumber) delete payload.referenceNumber;
+      if (!payload.notes) delete payload.notes;
 
       if (editingPayment) {
         await paymentAPI.update(editingPayment._id, payload);
@@ -474,10 +480,7 @@ const Payments = () => {
     try {
       setIsSubmitting(true);
 
-      const response = await paymentAPI.exportCSV({
-        ...filters,
-        search: searchTerm,
-      });
+      const response = await paymentAPI.exportCSV(filters);
 
       const blob = new Blob([response.data], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
@@ -516,20 +519,20 @@ const Payments = () => {
       </div>
 
       <div className="filters-section">
-        <form onSubmit={handleSearch} className="search-form">
+        <form className="search-form">
           <div className="search-input-wrapper">
             <FaSearch className="search-icon" />
             <input
-              type="text"
+              type="search"
               className="search-input"
               placeholder="Search by reference number, party name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.search}
+              onChange={(e) =>
+                setFilters({ ...filters, search: e.target.value })
+              }
             />
           </div>
-          {/* <button type="submit" className="payments-search">
-            Search
-          </button> */}
+
           <div className="filter-controls">
             <select
               className="filter-select"
@@ -554,8 +557,8 @@ const Payments = () => {
               }
             >
               <option value="">All Types</option>
-              <option value="payment_received">Payment Received</option>
-              <option value="payment_made">Payment Made</option>
+              <option value="received">Payment Received</option>
+              <option value="made">Payment Made</option>
             </select>
 
             <select
@@ -637,17 +640,22 @@ const Payments = () => {
                     <td>
                       <span
                         className={`type-badge ${
-                          payment.paymentType === "payment_received"
+                          payment.paymentType === "received"
                             ? "received"
                             : "made"
                         }`}
                       >
-                        {payment.paymentType === "payment_received"
+                        {payment.paymentType === "received"
                           ? "Received"
                           : "Made"}
                       </span>
                     </td>
-                    <td>{payment.partyName || "-"}</td>
+                    <td>
+                      {payment.paymentType === "received"
+                        ? payment.customer?.name
+                        : payment.vendor?.name}
+                    </td>
+
                     <td className="amount">{formatCurrency(payment.amount)}</td>
                     <td className="amount">
                       <span
@@ -715,7 +723,9 @@ const Payments = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Entity *</label>
+                    <label>
+                      Entity <RequiredStar />
+                    </label>
                     <select
                       name="entity"
                       value={formData.entity}
@@ -732,11 +742,14 @@ const Payments = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Payment Type *</label>
+                    <label>
+                      Payment Type <RequiredStar />
+                    </label>
                     <select
                       name="paymentType"
                       value={formData.paymentType}
                       onChange={handleChange}
+                      disabled={editingPayment}
                       required
                     >
                       <option value="received">Payment Received</option>
@@ -746,10 +759,12 @@ const Payments = () => {
                 </div>
                 {formData.paymentType === "received" && (
                   <div className="form-group">
-                    <label>Customer *</label>
+                    <label>
+                      Customer <RequiredStar />
+                    </label>
                     <select
                       name="customer"
-                      value={formData.customer || ""}
+                      value={formData.customer}
                       onChange={handleChange}
                       required
                     >
@@ -765,7 +780,9 @@ const Payments = () => {
 
                 {formData.paymentType === "made" && (
                   <div className="form-group">
-                    <label>Vendor *</label>
+                    <label>
+                      Vendor <RequiredStar />
+                    </label>
                     <select
                       name="vendor"
                       value={formData.vendor || ""}
@@ -784,7 +801,9 @@ const Payments = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Payment Date *</label>
+                    <label>
+                      Payment Date <RequiredStar />
+                    </label>
                     <input
                       type="date"
                       name="paymentDate"
@@ -795,7 +814,9 @@ const Payments = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Amount *</label>
+                    <label>
+                      Amount <RequiredStar />
+                    </label>
                     <input
                       type="number"
                       name="amount"
@@ -810,7 +831,9 @@ const Payments = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Payment Method *</label>
+                    <label>
+                      Payment Method <RequiredStar />
+                    </label>
                     <select
                       name="paymentMode"
                       value={formData.paymentMode}
@@ -825,9 +848,25 @@ const Payments = () => {
                     </select>
                   </div>
 
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Status</label>
+                      <select name="status" value={formData.status} onChange={handleChange}>
+                        <option value="">All Status</option>
+                        {statusOptions.map((status) => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   {formData.paymentMode !== "cash" && (
                     <div className="form-group">
-                      <label>Bank Account</label>
+                      <label>
+                        Bank Account <RequiredStar />
+                      </label>
                       <select
                         name="bankAccount"
                         value={formData.bankAccount}
@@ -847,7 +886,9 @@ const Payments = () => {
                   {formData.paymentMode === "cheque" && (
                     <>
                       <div className="form-group">
-                        <label>Cheque Number *</label>
+                        <label>
+                          Cheque Number <RequiredStar />
+                        </label>
                         <input
                           type="text"
                           name="chequeNumber"
@@ -857,7 +898,9 @@ const Payments = () => {
                         />
                       </div>
                       <div className="form-group">
-                        <label>Cheque Date *</label>
+                        <label>
+                          Cheque Date <RequiredStar />
+                        </label>
                         <input
                           type="date"
                           name="chequeDate"
@@ -871,7 +914,9 @@ const Payments = () => {
 
                   {formData.paymentMode === "upi" && (
                     <div className="form-group">
-                      <label>UPI ID *</label>
+                      <label>
+                        UPI ID <RequiredStar />
+                      </label>
                       <input
                         type="text"
                         name="upiId"
@@ -893,17 +938,6 @@ const Payments = () => {
                       value={formData.referenceNumber}
                       onChange={handleChange}
                       placeholder="Transaction ID / Reference"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Party Name</label>
-                    <input
-                      type="text"
-                      name="partyName"
-                      value={formData.partyName}
-                      onChange={handleChange}
-                      placeholder="Customer / Vendor Name"
                     />
                   </div>
                 </div>

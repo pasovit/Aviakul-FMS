@@ -14,6 +14,10 @@ import {
 import { bankAccountAPI, entityAPI } from "../services/api";
 import "./BankAccounts.css";
 
+import RequiredStar from "../components/RequiredStar";
+
+
+
 const BankAccounts = () => {
   const [accounts, setAccounts] = useState([]);
   const [entities, setEntities] = useState([]);
@@ -204,7 +208,7 @@ const BankAccounts = () => {
         <div className="search-box">
           <FaSearch />
           <input
-            type="text"
+            type="search"
             placeholder="Search accounts..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -347,7 +351,7 @@ const BankAccounts = () => {
             <form onSubmit={handleSubmit} className="account-form">
               <div className="form-row">
                 <div className="form-group">
-                  <label>Entity *</label>
+                  <label>Entity <RequiredStar /></label>
                   <select
                     name="entity"
                     value={formData.entity}
@@ -364,7 +368,7 @@ const BankAccounts = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Account Type *</label>
+                  <label>Account Type <RequiredStar /></label>
                   <select
                     name="accountType"
                     value={formData.accountType}
@@ -381,7 +385,7 @@ const BankAccounts = () => {
               </div>
 
               <div className="form-group">
-                <label>Account Name *</label>
+                <label>Account Name <RequiredStar /></label>
                 <input
                   type="text"
                   name="accountName"
@@ -396,7 +400,7 @@ const BankAccounts = () => {
                 <>
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Account Number *</label>
+                      <label>Account Number <RequiredStar /></label>
                       <input
                         type="text"
                         name="accountNumber"
@@ -408,7 +412,7 @@ const BankAccounts = () => {
                     </div>
 
                     <div className="form-group">
-                      <label>IFSC Code *</label>
+                      <label>IFSC Code <RequiredStar /></label>
                       <input
                         type="text"
                         name="ifscCode"
@@ -423,7 +427,7 @@ const BankAccounts = () => {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Bank Name *</label>
+                      <label>Bank Name <RequiredStar /></label>
                       <input
                         type="text"
                         name="bankName"
@@ -464,7 +468,7 @@ const BankAccounts = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Opening Balance Date *</label>
+                  <label>Opening Balance Date <RequiredStar /></label>
                   <input
                     type="date"
                     name="openingBalanceDate"
@@ -476,7 +480,7 @@ const BankAccounts = () => {
               </div>
 
               <div className="form-group">
-                <label>Opening Balance *</label>
+                <label>Opening Balance <RequiredStar /></label>
                 <input
                   type="number"
                   name="openingBalance"
