@@ -22,7 +22,7 @@ const Invoices = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+
   const [filters, setFilters] = useState({
     entity: "",
     invoiceType: "",
@@ -69,7 +69,7 @@ const Invoices = () => {
     { value: "90+", label: "90+ Days" },
   ];
 
-   useEffect(() => {
+  useEffect(() => {
     fetchEntities();
     fetchCustomers();
     fetchVendors();
@@ -78,7 +78,6 @@ const Invoices = () => {
   useEffect(() => {
     fetchInvoices();
   }, [filters]);
-  
 
   const fetchInvoices = async () => {
     try {
@@ -285,43 +284,42 @@ const Invoices = () => {
 
     if (isSubmitting) return;
 
+    if (
+      !formData.entity ||
+      !formData.invoiceType ||
+      !formData.invoiceDate ||
+      !formData.dueDate
+    ) {
+      toast.error("Please fill all mandatory invoice fields");
+      return;
+    }
+
+    if (formData.invoiceType === "sales" && !formData.customer) {
+      toast.error("Customer is required for sales invoice");
+      return;
+    }
+
+    if (formData.invoiceType === "purchase" && !formData.vendor) {
+      toast.error("Vendor is required for purchase invoice");
+      return;
+    }
+
+    if (!formData.lineItems || formData.lineItems.length === 0) {
+      toast.error("At least one line item is required");
+      return;
+    }
+
+    for (const item of formData.lineItems) {
+      if (!item.description || item.quantity <= 0 || item.rate < 0) {
+        toast.error("Please fill all required line item fields");
+        return;
+      }
+    }
+    if (new Date(formData.dueDate) < new Date(formData.invoiceDate)) {
+      toast.error("Due date cannot be before invoice date");
+      return;
+    }
     try {
-      if (
-        !formData.entity ||
-        !formData.invoiceType ||
-        !formData.invoiceDate ||
-        !formData.dueDate
-      ) {
-        toast.error("Please fill all mandatory invoice fields");
-        return;
-      }
-
-      if (formData.invoiceType === "sales" && !formData.customer) {
-        toast.error("Customer is required for sales invoice");
-        return;
-      }
-
-      if (formData.invoiceType === "purchase" && !formData.vendor) {
-        toast.error("Vendor is required for purchase invoice");
-        return;
-      }
-
-      if (!formData.lineItems || formData.lineItems.length === 0) {
-        toast.error("At least one line item is required");
-        return;
-      }
-
-      for (const item of formData.lineItems) {
-        if (!item.description || item.quantity <= 0 || item.rate < 0) {
-          toast.error("Please fill all required line item fields");
-          return;
-        }
-      }
-      if (new Date(formData.dueDate) < new Date(formData.invoiceDate)) {
-        toast.error("Due date cannot be before invoice date");
-        return;
-      }
-
       setIsSubmitting(true);
 
       const payload = { ...formData };
@@ -357,10 +355,7 @@ const Invoices = () => {
     try {
       setIsSubmitting(true);
 
-      const response = await invoiceAPI.exportCSV({
-        ...filters,
-        search: searchTerm,
-      });
+      const response = await invoiceAPI.exportCSV(filters);
 
       const blob = new Blob([response.data], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
@@ -432,7 +427,7 @@ const Invoices = () => {
             <FaFileExport /> Export CSV
           </button>
 
-          <button className="add-invoice" onClick={() => handleOpenModal()}>
+          <button className="add-invoice" onClick={() => handleOpenModal()} disabled={isSubmitting}>
             <FaPlus /> Create Invoice
           </button>
         </div>
@@ -446,13 +441,13 @@ const Invoices = () => {
               type="search"
               placeholder="Search by invoice number..."
               value={filters.search}
-               onChange={(e) =>
+              onChange={(e) =>
                 setFilters({ ...filters, search: e.target.value })
               }
               className="search-input"
             />
           </div>
-         
+
           <div className="filter-controls">
             <select
               value={filters.entity}

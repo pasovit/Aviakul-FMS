@@ -15,6 +15,8 @@ const Vendors = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [filters, setFilters] = useState({
     entity: "",
     category: "",
@@ -221,6 +223,7 @@ const Vendors = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
     const {
       entity,
       name,
@@ -247,17 +250,14 @@ const Vendors = () => {
       return toast.error("Complete address is required");
     }
 
-    // ===== PINCODE VALIDATION =====
     if (!/^[0-9]{6}$/.test(address.pincode)) {
       return toast.error("Pincode must be 6 digits");
     }
 
-    // ===== PAN VALIDATION =====
     if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan)) {
       return toast.error("Invalid PAN format");
     }
 
-    // ===== GSTIN VALIDATION =====
     if (
       gstin &&
       !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstin)
@@ -265,7 +265,6 @@ const Vendors = () => {
       return toast.error("Invalid GSTIN format");
     }
 
-    // ===== CUSTOM PAYMENT VALIDATION =====
     if (paymentTerms === "custom") {
       if (!customPaymentDays) {
         return toast.error("Custom payment days required");
@@ -275,17 +274,14 @@ const Vendors = () => {
       }
     }
 
-    // ===== TDS VALIDATION =====
     if (tdsRate < 0 || tdsRate > 30) {
       return toast.error("TDS rate must be between 0 and 30%");
     }
 
-    // ===== CREDIT LIMIT VALIDATION =====
     if (creditLimit < 0) {
       return toast.error("Credit limit cannot be negative");
     }
 
-    // ===== IFSC VALIDATION =====
     if (
       bankDetails?.ifscCode &&
       !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankDetails.ifscCode)
@@ -294,9 +290,10 @@ const Vendors = () => {
     }
 
     try {
+      setIsSubmitting(true);
+
       const cleanData = { ...formData };
 
-      // Remove empty optional fields
       if (!cleanData.phone) delete cleanData.phone;
       if (!cleanData.alternatePhone) delete cleanData.alternatePhone;
       if (!cleanData.pan) delete cleanData.pan;
@@ -313,18 +310,28 @@ const Vendors = () => {
       handleCloseModal();
       fetchVendors();
     } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to save vendor");
+      toast.error(error.response?.data?.message || "Failed to save vendor");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDelete = (id) => {
-    deleteWithConfirm({
-      title: "Are you sure?",
-      text: "This vendor will be permanently deleted!",
-      confirmText: "Delete",
-      apiCall: () => vendorAPI.delete(id),
-      onSuccess: fetchVendors,
-    });
+  const handleDelete = async (id) => {
+    if (isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+
+      await deleteWithConfirm({
+        title: "Are you sure?",
+        text: "This vendor will be permanently deleted!",
+        confirmText: "Delete",
+        apiCall: () => vendorAPI.delete(id),
+        onSuccess: fetchVendors,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatCurrency = (amount) => {
@@ -346,7 +353,7 @@ const Vendors = () => {
     <div className="vendors-page">
       <div className="page-header">
         <h1>Vendors</h1>
-        <button className="add-vendor" onClick={() => handleOpenModal()}>
+        <button className="add-vendor" onClick={() => handleOpenModal()} disabled={isSubmitting}>
           <FaPlus /> Add Vendor
         </button>
       </div>
@@ -438,6 +445,7 @@ const Vendors = () => {
                   <button
                     onClick={() => handleDelete(vendor._id)}
                     className="btn-icon danger"
+                    disabled={isSubmitting}
                     title="Delete"
                   >
                     <FaTrash />
@@ -913,8 +921,17 @@ const Vendors = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="vendor-create">
-                  {editingVendor ? "Update" : "Create"} Vendor
+                <button
+                  type="submit"
+                  className="vendor-create"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Processing..."
+                    : editingVendor
+                      ? "Update"
+                      : "Create"}{" "}
+                  Vendor
                 </button>
               </div>
             </form>
