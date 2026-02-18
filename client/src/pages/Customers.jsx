@@ -211,11 +211,18 @@ const Customers = () => {
     e.preventDefault();
 
     try {
+      // Clean up phone fields - remove if only country code is present
+      const cleanedData = {
+        ...formData,
+        phone: formData.phone && formData.phone.length > 3 ? formData.phone : "",
+        alternatePhone: formData.alternatePhone && formData.alternatePhone.length > 3 ? formData.alternatePhone : "",
+      };
+
       if (editingCustomer) {
-        await customerAPI.update(editingCustomer._id, formData);
+        await customerAPI.update(editingCustomer._id, cleanedData);
         toast.success("Customer updated successfully");
       } else {
-        await customerAPI.create(formData);
+        await customerAPI.create(cleanedData);
         toast.success("Customer created successfully");
       }
       handleCloseModal();
