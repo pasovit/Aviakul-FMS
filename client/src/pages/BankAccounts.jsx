@@ -204,7 +204,7 @@ const BankAccounts = () => {
           <p>Manage bank accounts and cash balances</p>
         </div>
         <button className="add-account" onClick={() => setShowModal(true)} disabled={isSubmitting}>
-          <FaPlus /> Add Account
+          <FaPlus size={12} /> Add Account
         </button>
       </div>
 

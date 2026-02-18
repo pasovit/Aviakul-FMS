@@ -424,11 +424,11 @@ const Invoices = () => {
             onClick={handleExport}
             disabled={isSubmitting}
           >
-            <FaFileExport /> Export CSV
+            <FaFileExport size={12}/> Export CSV
           </button>
 
           <button className="add-invoice" onClick={() => handleOpenModal()} disabled={isSubmitting}>
-            <FaPlus /> Create Invoice
+            <FaPlus size={12} /> Create Invoice
           </button>
         </div>
       </div>
@@ -1015,7 +1015,7 @@ const Invoices = () => {
                 </button>
                 <button
                   type="submit"
-                  className="invoice-create"
+                  className="btn invoice-create"
                   disabled={isSubmitting}
                 >
                   {isSubmitting

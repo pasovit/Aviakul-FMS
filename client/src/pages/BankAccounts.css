@@ -23,9 +23,13 @@
   color: white;
   border: none;
   padding: 0.8rem;
-  border-radius: 1rem;
+  border-radius: 6px;
   cursor: pointer;
   transition: transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap:4px;
+  font-size: 14px;
 }
 .add-account:hover,.bank-account-create:hover{
   transform: scale(1.05);
@@ -364,11 +368,13 @@
 
 .form-actions {
   display: flex;
-  gap: 1rem;
   justify-content: flex-end;
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #e9ecef;
+  position: sticky;
+  bottom: 0;
+  background: white;
 }
 
 .btn {

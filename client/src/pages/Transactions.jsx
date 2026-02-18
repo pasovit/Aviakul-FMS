@@ -537,10 +537,10 @@ const Transactions = () => {
               setShowFilters(!showFilters);
             }}
           >
-            <FaFilter /> Filters
+            <FaFilter size={12} /> Filters
           </button>
           <label className="transaction-import">
-            <FaUpload /> Import CSV
+            <FaUpload size={12} /> Import CSV
             <input
               type="file"
               accept=".csv"
@@ -550,7 +550,7 @@ const Transactions = () => {
           </label>
 
           <button className="transaction-export" onClick={handleExportCSV}>
-            <FaFileExcel /> Export CSV
+            <FaFileExcel size={12}/> Export CSV
           </button>
 
           <button
@@ -558,7 +558,7 @@ const Transactions = () => {
             onClick={() => setShowModal(true)}
             disabled={isSubmitting}
           >
-            <FaPlus /> Add Transaction
+            <FaPlus size={12}/> Add Transaction
           </button>
         </div>
       </div>
@@ -1002,7 +1002,7 @@ const Transactions = () => {
                 </button>
                 <button
                   type="submit"
-                  className="transaction-create"
+                  className="btn transaction-create"
                   disabled={isSubmitting}
                 >
                   {isSubmitting

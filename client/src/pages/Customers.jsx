@@ -241,6 +241,23 @@ const Customers = () => {
     ) {
       return toast.error("Please fill all mandatory fields");
     }
+    const phoneRegex = /^\+[1-9]\d{9,14}$/;
+
+    if (
+      formData.phone &&
+      formData.phone.length > 4 &&
+      !phoneRegex.test(formData.phone)
+    ) {
+      return toast.error("Invalid phone number format");
+    }
+
+    if (
+      formData.alternatePhone &&
+      formData.alternatePhone.length > 4 &&
+      !phoneRegex.test(formData.alternatePhone)
+    ) {
+      return toast.error("Invalid alternate phone number format");
+    }
 
     try {
       setIsSubmitting(true);
@@ -250,13 +267,17 @@ const Customers = () => {
       if (!cleanData.pan) delete cleanData.pan;
       if (!cleanData.gstin) delete cleanData.gstin;
       if (!cleanData.notes) delete cleanData.notes;
+     
+      const phoneDigits = formData.phone?.replace(/\D/g, "") || "";
+      const altPhoneDigits = formData.alternatePhone?.replace(/\D/g, "") || "";
 
-      if (!cleanData.phone || cleanData.phone.length < 10) {
-        delete cleanData.phone;
+     
+      if (!phoneDigits || phoneDigits.length < 10) {
+        cleanData.phone = null;
       }
 
-      if (!cleanData.alternatePhone || cleanData.alternatePhone.length < 10) {
-        delete cleanData.alternatePhone;
+      if (!altPhoneDigits || altPhoneDigits.length < 10) {
+        cleanData.alternatePhone = null;
       }
 
       if (editingCustomer) {
@@ -305,8 +326,12 @@ const Customers = () => {
     <div className="customers-page">
       <div className="page-header">
         <h1>Customers</h1>
-        <button className="add-customer" onClick={() => handleOpenModal()} disabled={isSubmitting}>
-          <FaPlus /> Add Customer
+        <button
+          className="add-customer"
+          onClick={() => handleOpenModal()}
+          disabled={isSubmitting}
+        >
+          <FaPlus size={12}/> Add Customer
         </button>
       </div>
 
@@ -324,7 +349,7 @@ const Customers = () => {
               className="search-input"
             />
           </div>
-         
+
           <div className="filter-controls">
             <select
               value={filters.entity}
@@ -831,7 +856,7 @@ const Customers = () => {
                 </button>
                 <button
                   type="submit"
-                  className="customer-create"
+                  className="btn customer-create"
                   disabled={isSubmitting}
                 >
                   {isSubmitting

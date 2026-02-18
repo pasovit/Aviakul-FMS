@@ -508,11 +508,11 @@ const Payments = () => {
             onClick={handleExport}
             disabled={isSubmitting}
           >
-            <FaFileExport /> Export CSV
+            <FaFileExport size={12} /> Export CSV
           </button>
 
           <button className="add-payment" onClick={() => handleOpenModal()} disabled={isSubmitting}>
-            <FaPlus /> Add Payment
+            <FaPlus size={12} /> Add Payment
           </button>
         </div>
       </div>
