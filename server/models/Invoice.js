@@ -26,7 +26,7 @@ const invoiceLineItemSchema = new mongoose.Schema(
     },
     amount: {
       type: Number,
-      // required: true,
+      required: true,
     },
     taxRate: {
       type: Number,
@@ -40,7 +40,7 @@ const invoiceLineItemSchema = new mongoose.Schema(
     },
     totalAmount: {
       type: Number,
-      // required: true,
+      required: true,
     },
   },
   { _id: true }
@@ -101,7 +101,6 @@ const invoiceSchema = new mongoose.Schema(
     },
     subtotal: {
       type: Number,
-      // required: true,
       min: [0, "Subtotal cannot be negative"],
     },
     cgst: {
@@ -134,7 +133,6 @@ const invoiceSchema = new mongoose.Schema(
     },
     totalAmount: {
       type: Number,
-      // required: true,
       min: [0, "Total amount cannot be negative"],
     },
     amountPaid: {
@@ -144,7 +142,6 @@ const invoiceSchema = new mongoose.Schema(
     },
     amountDue: {
       type: Number,
-      // required: true,
     },
     status: {
       type: String,
@@ -231,15 +228,17 @@ invoiceSchema.virtual("isOverdue").get(function () {
 });
 
 // Pre-save hook to calculate line item totals
-invoiceLineItemSchema.pre("save", function (next) {
+invoiceLineItemSchema.pre("validate", function (next) {
   this.amount = this.quantity * this.rate;
   this.taxAmount = (this.amount * this.taxRate) / 100;
   this.totalAmount = this.amount + this.taxAmount;
   next();
 });
 
+
 // Pre-save hook for invoice calculations
-invoiceSchema.pre("save", function (next) {
+invoiceSchema.pre("validate", function (next) {
+
   // Calculate line item totals
   this.lineItems.forEach((item) => {
     item.amount = item.quantity * item.rate;
@@ -303,27 +302,6 @@ invoiceSchema.pre("save", function (next) {
   next();
 });
 
-// Static method to generate invoice number
-// invoiceSchema.statics.generateInvoiceNumber = async function (
-//   entityId,
-//   invoiceType,
-//   invoiceDate
-// ) {
-//   const year = invoiceDate.getFullYear();
-//   const month = String(invoiceDate.getMonth() + 1).padStart(2, "0");
-//   const prefix = invoiceType === "sales" ? "SI" : "PI";
-
-//   const count = await this.countDocuments({
-//     entity: entityId,
-//     invoiceType: invoiceType,
-//     invoiceDate: {
-//       $gte: new Date(year, invoiceDate.getMonth(), 1),
-//       $lt: new Date(year, invoiceDate.getMonth() + 1, 1),
-//     },
-//   });
-
-//   return `${prefix}${year}${month}${String(count + 1).padStart(4, "0")}`;
-// };
 
 invoiceSchema.pre("validate", async function (next) {
   if (!this.isNew) return next();

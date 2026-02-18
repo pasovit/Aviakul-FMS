@@ -5,6 +5,7 @@ import { vendorAPI, entityAPI } from "../services/api";
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
+import RequiredStar from "../components/RequiredStar";
 
 import "./Vendors.css";
 
@@ -14,11 +15,13 @@ const Vendors = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [filters, setFilters] = useState({
     entity: "",
     category: "",
     isActive: "true",
+    search: "",
   });
 
   const [formData, setFormData] = useState({
@@ -87,21 +90,24 @@ const Vendors = () => {
   ];
 
   useEffect(() => {
-    fetchVendors();
     fetchEntities();
+  }, []);
+
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      fetchVendors();
+    }, 500);
+
+    return () => clearTimeout(delay);
   }, [filters]);
 
   const fetchVendors = async () => {
     try {
       setLoading(true);
-      const response = await vendorAPI.getAll({
-        ...filters,
-        search: searchTerm,
-      });
+      const response = await vendorAPI.getAll(filters);
       setVendors(response.data.data);
     } catch (error) {
       toast.error("Failed to fetch vendors");
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -114,11 +120,6 @@ const Vendors = () => {
     } catch (error) {
       console.error("Failed to fetch entities:", error);
     }
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchVendors();
   };
 
   const handleOpenModal = (vendor = null) => {
@@ -222,30 +223,115 @@ const Vendors = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+    const {
+      entity,
+      name,
+      address,
+      pan,
+      gstin,
+      paymentTerms,
+      customPaymentDays,
+      tdsRate,
+      creditLimit,
+      bankDetails,
+    } = formData;
+
+    // ===== REQUIRED FIELDS =====
+    if (!entity) return toast.error("Entity is required");
+    if (!name.trim()) return toast.error("Vendor name is required");
+
+    if (
+      !address.line1.trim() ||
+      !address.city.trim() ||
+      !address.state.trim() ||
+      !address.pincode.trim()
+    ) {
+      return toast.error("Complete address is required");
+    }
+
+    if (!/^[0-9]{6}$/.test(address.pincode)) {
+      return toast.error("Pincode must be 6 digits");
+    }
+
+    if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan)) {
+      return toast.error("Invalid PAN format");
+    }
+
+    if (
+      gstin &&
+      !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstin)
+    ) {
+      return toast.error("Invalid GSTIN format");
+    }
+
+    if (paymentTerms === "custom") {
+      if (!customPaymentDays) {
+        return toast.error("Custom payment days required");
+      }
+      if (customPaymentDays < 0 || customPaymentDays > 365) {
+        return toast.error("Custom payment days must be between 0 and 365");
+      }
+    }
+
+    if (tdsRate < 0 || tdsRate > 30) {
+      return toast.error("TDS rate must be between 0 and 30%");
+    }
+
+    if (creditLimit < 0) {
+      return toast.error("Credit limit cannot be negative");
+    }
+
+    if (
+      bankDetails?.ifscCode &&
+      !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankDetails.ifscCode)
+    ) {
+      return toast.error("Invalid IFSC format");
+    }
+
     try {
+      setIsSubmitting(true);
+
+      const cleanData = { ...formData };
+
+      if (!cleanData.phone) delete cleanData.phone;
+      if (!cleanData.alternatePhone) delete cleanData.alternatePhone;
+      if (!cleanData.pan) delete cleanData.pan;
+      if (!cleanData.gstin) delete cleanData.gstin;
+
       if (editingVendor) {
-        await vendorAPI.update(editingVendor._id, formData);
+        await vendorAPI.update(editingVendor._id, cleanData);
         toast.success("Vendor updated successfully");
       } else {
-        await vendorAPI.create(formData);
+        await vendorAPI.create(cleanData);
         toast.success("Vendor created successfully");
       }
+
       handleCloseModal();
       fetchVendors();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save vendor");
-      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDelete = (id) => {
-    deleteWithConfirm({
-      title: "Are you sure?",
-      text: "This vendor will be permanently deleted!",
-      confirmText: "Delete",
-      apiCall: () => vendorAPI.delete(id),
-      onSuccess: fetchVendors,
-    });
+  const handleDelete = async (id) => {
+    if (isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+
+      await deleteWithConfirm({
+        title: "Are you sure?",
+        text: "This vendor will be permanently deleted!",
+        confirmText: "Delete",
+        apiCall: () => vendorAPI.delete(id),
+        onSuccess: fetchVendors,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatCurrency = (amount) => {
@@ -267,26 +353,25 @@ const Vendors = () => {
     <div className="vendors-page">
       <div className="page-header">
         <h1>Vendors</h1>
-        <button className="add-vendor" onClick={() => handleOpenModal()}>
+        <button className="add-vendor" onClick={() => handleOpenModal()} disabled={isSubmitting}>
           <FaPlus /> Add Vendor
         </button>
       </div>
 
       <div className="filters-section">
-        <form onSubmit={handleSearch} className="search-form">
+        <form className="search-form">
           <div className="search-input-wrapper">
             <FaSearch className="search-icon" />
             <input
-              type="text"
+              type="search"
               placeholder="Search by name, code, or contact person..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.search}
+              onChange={(e) =>
+                setFilters({ ...filters, search: e.target.value })
+              }
               className="search-input"
             />
           </div>
-          {/* <button type="submit" className="vendor-search">
-            Search
-          </button> */}
 
           <div className="filter-controls">
             <select
@@ -360,6 +445,7 @@ const Vendors = () => {
                   <button
                     onClick={() => handleDelete(vendor._id)}
                     className="btn-icon danger"
+                    disabled={isSubmitting}
                     title="Delete"
                   >
                     <FaTrash />
@@ -444,7 +530,9 @@ const Vendors = () => {
                 <h3>Basic Information</h3>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Entity *</label>
+                    <label>
+                      Entity <RequiredStar />
+                    </label>
                     <select
                       name="entity"
                       value={formData.entity}
@@ -461,7 +549,9 @@ const Vendors = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Vendor Name *</label>
+                    <label>
+                      Vendor Name <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="name"
@@ -503,7 +593,9 @@ const Vendors = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Phone</label>
+                    <label>
+                      Phone <RequiredStar />
+                    </label>
                     <PhoneInput
                       defaultCountry="in"
                       value={formData.phone}
@@ -518,11 +610,14 @@ const Vendors = () => {
                           },
                         })
                       }
+                      required
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Alternate Phone</label>
+                    <label>
+                      Alternate Phone <RequiredStar />
+                    </label>
                     <PhoneInput
                       defaultCountry="in"
                       value={formData.alternatePhone}
@@ -534,6 +629,7 @@ const Vendors = () => {
                           },
                         })
                       }
+                      required
                     />
                   </div>
                 </div>
@@ -613,7 +709,9 @@ const Vendors = () => {
               <div className="form-section">
                 <h3>Address</h3>
                 <div className="form-group">
-                  <label>Address Line 1 *</label>
+                  <label>
+                    Address Line 1 <RequiredStar />
+                  </label>
                   <input
                     type="text"
                     name="address.line1"
@@ -637,7 +735,9 @@ const Vendors = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>City *</label>
+                    <label>
+                      City <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="address.city"
@@ -649,7 +749,9 @@ const Vendors = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>State *</label>
+                    <label>
+                      State <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="address.state"
@@ -663,7 +765,9 @@ const Vendors = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Pincode *</label>
+                    <label>
+                      Pincode <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="address.pincode"
@@ -707,7 +811,9 @@ const Vendors = () => {
 
                   {formData.paymentTerms === "custom" && (
                     <div className="form-group">
-                      <label>Custom Days</label>
+                      <label>
+                        Custom Days <RequiredStar />
+                      </label>
                       <input
                         type="number"
                         name="customPaymentDays"
@@ -715,6 +821,7 @@ const Vendors = () => {
                         onChange={handleChange}
                         min="0"
                         max="365"
+                        required
                       />
                     </div>
                   )}
@@ -814,8 +921,17 @@ const Vendors = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="vendor-create">
-                  {editingVendor ? "Update" : "Create"} Vendor
+                <button
+                  type="submit"
+                  className="vendor-create"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Processing..."
+                    : editingVendor
+                      ? "Update"
+                      : "Create"}{" "}
+                  Vendor
                 </button>
               </div>
             </form>

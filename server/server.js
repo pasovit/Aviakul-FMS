@@ -21,11 +21,10 @@ const customerRoutes = require("./routes/customerRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 
-
-
 // Utils
 const { logger } = require("./utils/logger");
 const { startCronJobs } = require("./jobs");
+const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 
@@ -55,7 +54,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 // Allow preflight
@@ -136,7 +135,6 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/categories", require("./routes/categoryRoutes"));
 app.use("/api/subcategories", require("./routes/subCategoryRoutes"));
 
-
 /* ======================================================
    404 HANDLER
 ====================================================== */
@@ -150,13 +148,8 @@ app.use((req, res) => {
 /* ======================================================
    ERROR HANDLER
 ====================================================== */
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({
-    success: false,
-    message: "Internal Server Error",
-  });
-});
+app.use(errorHandler);
+
 
 /* ======================================================
    DATABASE CONNECTION

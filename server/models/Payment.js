@@ -18,7 +18,7 @@ const paymentAllocationSchema = new mongoose.Schema(
       default: Date.now,
     },
   },
-  { _id: true }
+  { _id: true },
 );
 
 const paymentSchema = new mongoose.Schema(
@@ -43,18 +43,27 @@ const paymentSchema = new mongoose.Schema(
       required: [true, "Payment type is required"],
       index: true,
     },
-    // For received payments (from customers)
     customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
       index: true,
+      set: (v) => (v === "" ? undefined : v),
     },
-    // For made payments (to vendors)
+
     vendor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vendor",
       index: true,
+      set: (v) => (v === "" ? undefined : v),
     },
+
+    bankAccount: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "BankAccount",
+      index: true,
+      set: (v) => (v === "" ? undefined : v),
+    },
+
     paymentDate: {
       type: Date,
       required: [true, "Payment date is required"],
@@ -71,11 +80,7 @@ const paymentSchema = new mongoose.Schema(
       required: [true, "Payment mode is required"],
       index: true,
     },
-    bankAccount: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "BankAccount",
-      index: true,
-    },
+
     referenceNumber: {
       type: String,
       trim: true,
@@ -91,9 +96,9 @@ const paymentSchema = new mongoose.Schema(
           if (!v || v.length === 0) return true;
           const totalAllocated = v.reduce(
             (sum, a) => sum + a.allocatedAmount,
-            0
+            0,
           );
-          return Math.abs(totalAllocated - this.amount) < 0.01; // Allow small rounding differences
+          return Math.abs(totalAllocated - this.amount) < 0.01;
         },
         message: "Total allocated amount must equal payment amount",
       },
@@ -150,7 +155,7 @@ const paymentSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Compound indexes
@@ -170,7 +175,7 @@ paymentSchema.pre("save", function (next) {
   if (this.allocations && this.allocations.length > 0) {
     this.allocatedAmount = this.allocations.reduce(
       (sum, a) => sum + a.allocatedAmount,
-      0
+      0,
     );
   } else {
     this.allocatedAmount = 0;
@@ -195,7 +200,7 @@ paymentSchema.pre("save", function (next) {
 paymentSchema.statics.generatePaymentNumber = async function (
   entityId,
   paymentType,
-  paymentDate
+  paymentDate,
 ) {
   const year = paymentDate.getFullYear();
   const month = String(paymentDate.getMonth() + 1).padStart(2, "0");
@@ -260,7 +265,7 @@ paymentSchema.statics.getPaymentSummary = async function (
   entityId,
   paymentType,
   startDate,
-  endDate
+  endDate,
 ) {
   const match = {
     entity: mongoose.Types.ObjectId(entityId),

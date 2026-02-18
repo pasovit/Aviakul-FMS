@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+import RequiredStar from "../components/RequiredStar";
 
 import {
   FaPlus,
@@ -21,12 +22,13 @@ const Invoices = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+
   const [filters, setFilters] = useState({
     entity: "",
     invoiceType: "",
     status: "",
     agingBucket: "",
+    search: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -68,19 +70,19 @@ const Invoices = () => {
   ];
 
   useEffect(() => {
-    fetchInvoices();
     fetchEntities();
     fetchCustomers();
     fetchVendors();
+  }, []);
+
+  useEffect(() => {
+    fetchInvoices();
   }, [filters]);
 
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const response = await invoiceAPI.getAll({
-        ...filters,
-        search: searchTerm,
-      });
+      const response = await invoiceAPI.getAll(filters);
       setInvoices(response.data.data);
     } catch (error) {
       toast.error("Failed to fetch invoices");
@@ -117,11 +119,6 @@ const Invoices = () => {
     }
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchInvoices();
-  };
-
   const calculateDueDate = (invoiceDate, type, partyId) => {
     const date = new Date(invoiceDate);
     let days = 30; // default
@@ -146,7 +143,7 @@ const Invoices = () => {
         invoiceType: invoice.invoiceType,
         customer: invoice.customer?._id || invoice.customer || "",
         vendor: invoice.vendor?._id || invoice.vendor || "",
-        gstType:"cgst_sgst",
+        gstType: "cgst_sgst",
         invoiceDate: invoice.invoiceDate.split("T")[0],
         dueDate: invoice.dueDate.split("T")[0],
         lineItems: invoice.lineItems || [
@@ -256,20 +253,6 @@ const Invoices = () => {
     }
   };
 
-  // const calculateTotals = () => {
-  //   const subtotal = formData.lineItems.reduce((sum, item) => {
-  //     return sum + item.quantity * item.rate;
-  //   }, 0);
-
-  //   const taxTotal = formData.lineItems.reduce((sum, item) => {
-  //     return sum + (item.quantity * item.rate * item.taxRate) / 100;
-  //   }, 0);
-
-  //   const total = subtotal + taxTotal - formData.tdsAmount + formData.roundOff;
-
-  //   return { subtotal, taxTotal, total };
-  // };
-
   const calculateTotals = () => {
     const subtotal = formData.lineItems.reduce(
       (sum, item) => sum + item.quantity * item.rate,
@@ -301,6 +284,41 @@ const Invoices = () => {
 
     if (isSubmitting) return;
 
+    if (
+      !formData.entity ||
+      !formData.invoiceType ||
+      !formData.invoiceDate ||
+      !formData.dueDate
+    ) {
+      toast.error("Please fill all mandatory invoice fields");
+      return;
+    }
+
+    if (formData.invoiceType === "sales" && !formData.customer) {
+      toast.error("Customer is required for sales invoice");
+      return;
+    }
+
+    if (formData.invoiceType === "purchase" && !formData.vendor) {
+      toast.error("Vendor is required for purchase invoice");
+      return;
+    }
+
+    if (!formData.lineItems || formData.lineItems.length === 0) {
+      toast.error("At least one line item is required");
+      return;
+    }
+
+    for (const item of formData.lineItems) {
+      if (!item.description || item.quantity <= 0 || item.rate < 0) {
+        toast.error("Please fill all required line item fields");
+        return;
+      }
+    }
+    if (new Date(formData.dueDate) < new Date(formData.invoiceDate)) {
+      toast.error("Due date cannot be before invoice date");
+      return;
+    }
     try {
       setIsSubmitting(true);
 
@@ -310,7 +328,12 @@ const Invoices = () => {
       if (payload.invoiceType === "purchase") delete payload.customer;
 
       if (editingInvoice) {
-        await invoiceAPI.update(editingInvoice._id, payload);
+        const cleanData = { ...payload };
+
+        if (!cleanData.notes) delete cleanData.notes;
+        if (!cleanData.termsAndConditions) delete cleanData.termsAndConditions;
+
+        await invoiceAPI.update(editingInvoice._id, cleanData);
         toast.success("Invoice updated successfully");
       } else {
         await invoiceAPI.create(payload);
@@ -332,10 +355,7 @@ const Invoices = () => {
     try {
       setIsSubmitting(true);
 
-      const response = await invoiceAPI.exportCSV({
-        ...filters,
-        search: searchTerm,
-      });
+      const response = await invoiceAPI.exportCSV(filters);
 
       const blob = new Blob([response.data], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
@@ -407,27 +427,27 @@ const Invoices = () => {
             <FaFileExport /> Export CSV
           </button>
 
-          <button className="add-invoice" onClick={() => handleOpenModal()}>
+          <button className="add-invoice" onClick={() => handleOpenModal()} disabled={isSubmitting}>
             <FaPlus /> Create Invoice
           </button>
         </div>
       </div>
 
       <div className="filters-section">
-        <form onSubmit={handleSearch} className="search-form">
+        <form className="search-form">
           <div className="search-input-wrapper">
             <FaSearch className="search-icon" />
             <input
-              type="text"
+              type="search"
               placeholder="Search by invoice number..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.search}
+              onChange={(e) =>
+                setFilters({ ...filters, search: e.target.value })
+              }
               className="search-input"
             />
           </div>
-          {/* <button type="submit" className="invoice-search">
-            Search
-          </button> */}
+
           <div className="filter-controls">
             <select
               value={filters.entity}
@@ -611,7 +631,9 @@ const Invoices = () => {
                 <h3>Invoice Details</h3>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Entity *</label>
+                    <label>
+                      Entity <RequiredStar />
+                    </label>
                     <select
                       name="entity"
                       value={formData.entity}
@@ -628,7 +650,9 @@ const Invoices = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Invoice Type *</label>
+                    <label>
+                      Invoice Type <RequiredStar />
+                    </label>
                     <select
                       name="invoiceType"
                       value={formData.invoiceType}
@@ -644,7 +668,9 @@ const Invoices = () => {
                 <div className="form-row">
                   {formData.invoiceType === "sales" ? (
                     <div className="form-group">
-                      <label>Customer *</label>
+                      <label>
+                        Customer <RequiredStar />
+                      </label>
                       <select
                         name="customer"
                         value={formData.customer}
@@ -661,7 +687,9 @@ const Invoices = () => {
                     </div>
                   ) : (
                     <div className="form-group">
-                      <label>Vendor *</label>
+                      <label>
+                        Vendor <RequiredStar />
+                      </label>
                       <select
                         name="vendor"
                         value={formData.vendor}
@@ -679,7 +707,9 @@ const Invoices = () => {
                   )}
 
                   <div className="form-group">
-                    <label>Invoice Date *</label>
+                    <label>
+                      Invoice Date <RequiredStar />
+                    </label>
                     <input
                       type="date"
                       name="invoiceDate"
@@ -690,7 +720,9 @@ const Invoices = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Due Date *</label>
+                    <label>
+                      Due Date <RequiredStar />
+                    </label>
                     <input
                       type="date"
                       name="dueDate"
@@ -718,12 +750,21 @@ const Invoices = () => {
                   <table>
                     <thead>
                       <tr>
-                        <th style={{ width: "35%" }}>Description</th>
-                        <th style={{ width: "10%" }}>Qty</th>
+                        <th style={{ width: "35%" }}>
+                          Description <RequiredStar />
+                        </th>
+                        <th style={{ width: "10%" }}>
+                          Qty <RequiredStar />
+                        </th>
                         <th style={{ width: "10%" }}>Unit</th>
-                        <th style={{ width: "15%" }}>Rate</th>
+                        <th style={{ width: "15%" }}>
+                          Rate
+                          <RequiredStar />
+                        </th>
                         <th style={{ width: "10%" }}>Tax %</th>
-                        <th style={{ width: "15%" }}>Amount</th>
+                        <th style={{ width: "15%" }}>
+                          Amount <RequiredStar />
+                        </th>
                         <th style={{ width: "5%" }}></th>
                       </tr>
                     </thead>

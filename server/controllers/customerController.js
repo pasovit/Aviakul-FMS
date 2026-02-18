@@ -1,5 +1,112 @@
+const mongoose = require("mongoose");
 const Customer = require("../models/Customer");
-const { logAction } = require("../middleware/audit");
+const Entity = require("../models/Entity");
+const {logAction} = require("../middleware/audit");
+
+// Create new customer
+exports.createCustomer = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Permission check
+    if (userRole === "employee" || userRole === "observer") {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to create customer",
+      });
+    }
+
+    const {
+      entity,
+      name,
+      billingAddress,
+      creditTerms,
+      customCreditDays,
+    } = req.body;
+
+    // Required field validation
+    if (
+      !entity ||
+      !name ||
+      !billingAddress?.line1 ||
+      !billingAddress?.city ||
+      !billingAddress?.state ||
+      !billingAddress?.pincode
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Mandatory fields are missing",
+      });
+    }
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(entity)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid entity ID",
+      });
+    }
+
+    // Check entity exists
+    const entityExists = await Entity.findById(entity);
+    if (!entityExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Entity not found",
+      });
+    }
+
+    // Custom credit validation
+    if (creditTerms === "custom" && (!customCreditDays || customCreditDays < 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid custom credit days required",
+      });
+    }
+
+    // Duplicate name check
+    const existingCustomer = await Customer.findOne({
+      entity,
+      name,
+      isActive: true,
+    });
+
+    if (existingCustomer) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer with this name already exists for this entity",
+      });
+    }
+
+    const customer = await Customer.create({
+      ...req.body,
+      createdBy: userId,
+    });
+
+    await logAction(
+      userId,
+      "CREATE",
+      "Customer",
+      customer._id,
+      null,
+      customer.toObject(),
+      req
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Customer created successfully",
+      data: customer,
+    });
+  } catch (error) {
+    console.error("Create Customer Error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to create customer",
+    });
+  }
+};
 
 // Get all customers with filters
 exports.getCustomers = async (req, res) => {
@@ -91,63 +198,7 @@ exports.getCustomer = async (req, res) => {
   }
 };
 
-// Create new customer
-exports.createCustomer = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const userRole = req.user.role;
 
-    // Only admin and accountant can create customers
-    if (userRole === "employee" || userRole === "observer") {
-      return res.status(403).json({
-        success: false,
-        message: "Insufficient permissions to create customer",
-      });
-    }
-
-    // Check for duplicate customer name
-    const existingCustomer = await Customer.findOne({
-      entity: req.body.entity,
-      name: req.body.name,
-      isActive: true,
-    });
-
-    if (existingCustomer) {
-      return res.status(400).json({
-        success: false,
-        message: "Customer with this name already exists for this entity",
-      });
-    }
-
-    const customer = await Customer.create({
-      ...req.body,
-      createdBy: userId,
-    });
-
-    await logAction(
-      userId,
-      "CREATE",
-      "Customer",
-      customer._id,
-      null,
-      customer.toObject(),
-      req
-    );
-
-    res.status(201).json({
-      success: true,
-      message: "Customer created successfully",
-      data: customer,
-    });
-  } catch (error) {
-    console.error("Error creating customer:", error);
-    res.status(400).json({
-      success: false,
-      message: "Failed to create customer",
-      error: error.message,
-    });
-  }
-};
 
 // Update customer
 exports.updateCustomer = async (req, res) => {
@@ -155,7 +206,7 @@ exports.updateCustomer = async (req, res) => {
     const userId = req.user._id;
     const userRole = req.user.role;
 
-    // Only admin and accountant can update customers
+    // Permission check
     if (userRole === "employee" || userRole === "observer") {
       return res.status(403).json({
         success: false,
@@ -173,7 +224,24 @@ exports.updateCustomer = async (req, res) => {
 
     const oldData = customer.toObject();
 
-    // Prevent changing currentOutstanding directly
+    // Prevent protected field modification
+    if (req.body.customerCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer code cannot be modified",
+      });
+    }
+
+    if (
+      req.body.entity &&
+      req.body.entity.toString() !== customer.entity.toString()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Entity cannot be changed",
+      });
+    }
+
     if (
       req.body.currentOutstanding !== undefined &&
       req.body.currentOutstanding !== customer.currentOutstanding
@@ -185,8 +253,52 @@ exports.updateCustomer = async (req, res) => {
       });
     }
 
-    // Update customer
+    // Custom credit validation
+    if (
+      req.body.creditTerms === "custom" &&
+      (!req.body.customCreditDays || req.body.customCreditDays < 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid custom credit days required",
+      });
+    }
+
+    // Duplicate name check (if name is changing)
+    if (req.body.name && req.body.name !== customer.name) {
+      const duplicate = await Customer.findOne({
+        entity: customer.entity,
+        name: req.body.name,
+        _id: { $ne: customer._id },
+        isActive: true,
+      });
+
+      if (duplicate) {
+        return res.status(400).json({
+          success: false,
+          message: "Customer with this name already exists",
+        });
+      }
+    }
+
+    // Assign updates
     Object.assign(customer, req.body, { updatedBy: userId });
+
+    // Final required field validation
+    if (
+      !customer.entity ||
+      !customer.name ||
+      !customer.billingAddress?.line1 ||
+      !customer.billingAddress?.city ||
+      !customer.billingAddress?.state ||
+      !customer.billingAddress?.pincode
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Mandatory fields cannot be empty",
+      });
+    }
+
     await customer.save();
 
     await logAction(
@@ -199,20 +311,20 @@ exports.updateCustomer = async (req, res) => {
       req
     );
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: "Customer updated successfully",
       data: customer,
     });
   } catch (error) {
-    console.error("Error updating customer:", error);
+    console.error("Update Customer Error:", error);
     res.status(400).json({
       success: false,
-      message: "Failed to update customer",
-      error: error.message,
+      message: error.message || "Failed to update customer",
     });
   }
 };
+
 
 // Delete customer (soft delete)
 exports.deleteCustomer = async (req, res) => {
@@ -257,7 +369,7 @@ exports.deleteCustomer = async (req, res) => {
       customer._id,
       oldData,
       { isActive: false },
-      req
+      req,
     );
 
     res.json({
@@ -378,7 +490,7 @@ exports.addShippingAddress = async (req, res) => {
       customer._id,
       null,
       { action: "add_shipping_address", address: req.body },
-      req
+      req,
     );
 
     res.json({

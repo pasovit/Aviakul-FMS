@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
+import RequiredStar from "../components/RequiredStar";
+
 import {
   FaPlus,
   FaEdit,
@@ -21,16 +23,18 @@ import {
 import "./Transactions.css";
 import { FiEdit } from "react-icons/fi";
 
-// const CATEGORY_OPTIONS = [
-//   { label: "Salary", value: "salary" },
-//   { label: "Sales", value: "sales" },
-//   { label: "Consulting", value: "consulting" },
-
-//   { label: "Rent", value: "rent" },
-//   { label: "Utilities", value: "utilities" },
-//   { label: "Travel", value: "travel" },
-//   { label: "Purchase", value: "purchase" },
-// ];
+const defaultFilters = {
+  entity: "",
+  bankAccount: "",
+  type: "",
+  category: "",
+  status: "",
+  startDate: "",
+  endDate: "",
+  search: "",
+  page: 1,
+  limit: 20,
+};
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -65,18 +69,9 @@ const Transactions = () => {
 
   const [activeTab, setActiveTab] = useState("category");
 
-  const [filters, setFilters] = useState({
-    entity: "",
-    bankAccount: "",
-    type: "",
-    category: "",
-    status: "",
-    startDate: "",
-    endDate: "",
-    search: "",
-    page: 1,
-    limit: 20,
-  });
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [filters, setFilters] = useState(defaultFilters);
 
   const [formData, setFormData] = useState({
     entity: "",
@@ -84,6 +79,7 @@ const Transactions = () => {
     transactionDate: new Date().toISOString().split("T")[0],
     type: "expense",
     category: "",
+    subCategory: "",
     partyName: "",
     partyPAN: "",
     partyGSTIN: "",
@@ -104,11 +100,26 @@ const Transactions = () => {
   });
 
   useEffect(() => {
-    fetchTransactions();
     fetchEntities();
     fetchBankAccounts();
     fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    fetchTransactions();
   }, [filters]);
+
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      setFilters((prev) => ({
+        ...prev,
+        search: searchTerm,
+        page: 1,
+      }));
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm]);
 
   const fetchCategories = async () => {
     const res = await categoryAPI.getAll();
@@ -178,6 +189,7 @@ const Transactions = () => {
       transactionDate: new Date().toISOString().split("T")[0],
       type: "expense",
       category: "",
+      subCategory: "",
       partyName: "",
       partyPAN: "",
       partyGSTIN: "",
@@ -208,7 +220,9 @@ const Transactions = () => {
       bankAccount: transaction.bankAccount?._id || "",
       transactionDate: transaction.transactionDate.split("T")[0],
       type: transaction.type,
-      category: transaction.category,
+      category: transaction.category?._id || "",
+      subCategory: transaction.subCategory?._id || "",
+
       partyName: transaction.partyName || "",
       partyPAN: transaction.partyPAN || "",
       partyGSTIN: transaction.partyGSTIN || "",
@@ -239,6 +253,20 @@ const Transactions = () => {
     if (isSubmitting) return;
 
     try {
+      if (
+        !formData.entity ||
+        !formData.bankAccount ||
+        !formData.transactionDate ||
+        !formData.type ||
+        !formData.category ||
+        !formData.partyName ||
+        !formData.amount
+      ) {
+        toast.error("Please fill all mandatory fields");
+        setIsSubmitting(false);
+        return;
+      }
+
       setIsSubmitting(true);
 
       const amount = Number(formData.amount) || 0;
@@ -247,15 +275,21 @@ const Transactions = () => {
       const igst = Number(formData.igst) || 0;
       const tds = Number(formData.tdsAmount) || 0;
 
+      if (amount <= 0) {
+        toast.error("Amount must be greater than 0");
+        return;
+      }
+
       const totalAmount = amount + cgst + sgst + igst - tds;
 
-      if (totalAmount <= 0) {
+      if (totalAmount < 1) {
         toast.error("Total amount must be greater than 0");
         return;
       }
 
       const submitData = {
         ...formData,
+        subCategory: formData.subCategory || null,
         amount,
         gstDetails: { cgst, sgst, igst },
         tdsDetails: {
@@ -303,18 +337,22 @@ const Transactions = () => {
       setIsSubmitting(false);
     }
   };
-
   const handleBulkUpdate = async (status) => {
+    if (isSubmitting) return;
+
     if (selectedIds.length === 0) {
       toast.warning("Please select transactions first");
       return;
     }
 
     try {
+      setIsSubmitting(true);
+
       await transactionAPI.bulkUpdateStatus({
         transactionIds: selectedIds,
         status,
       });
+
       toast.success(`${selectedIds.length} transactions marked as ${status}`);
       setSelectedIds([]);
       fetchTransactions();
@@ -322,6 +360,8 @@ const Transactions = () => {
       toast.error(
         error.response?.data?.message || "Failed to update transactions",
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -477,10 +517,6 @@ const Transactions = () => {
     fetchSubCategories(selectedCategoryForSub);
   };
 
-  if (loading) {
-    return <div className="loading">Loading transactions...</div>;
-  }
-
   return (
     <div
       className={`transactions-page ${isSubmitting ? "transactions-disabled" : ""}`}
@@ -493,7 +529,13 @@ const Transactions = () => {
         <div className="header-actions">
           <button
             className="transaction-show-filters"
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={() => {
+              if (showFilters) {
+                setFilters(defaultFilters);
+                setSearchTerm("");
+              }
+              setShowFilters(!showFilters);
+            }}
           >
             <FaFilter /> Filters
           </button>
@@ -510,13 +552,11 @@ const Transactions = () => {
           <button className="transaction-export" onClick={handleExportCSV}>
             <FaFileExcel /> Export CSV
           </button>
-          {/* 
-          <button className="transaction-export" onClick={handleExport}>
-            <FaFileExcel /> Export.xlsx
-          </button> */}
+
           <button
             className="add-transaction"
             onClick={() => setShowModal(true)}
+            disabled={isSubmitting}
           >
             <FaPlus /> Add Transaction
           </button>
@@ -527,12 +567,13 @@ const Transactions = () => {
         <div className="filters-panel">
           <div className="filters-grid">
             <input
-              type="text"
+              type="search"
               name="search"
               placeholder="Search..."
-              value={filters.search}
-              onChange={handleFilterChange}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
+
             <select
               name="entity"
               value={filters.entity}
@@ -553,7 +594,8 @@ const Transactions = () => {
               <option value="">All Types</option>
               <option value="income">Income</option>
               <option value="expense">Expense</option>
-              <option value="transfer">Transfer</option>
+              <option value="loan">Loan</option>
+              <option value="refund">Refund</option>
             </select>
             <select
               name="status"
@@ -564,7 +606,6 @@ const Transactions = () => {
               <option value="pending">Pending</option>
               <option value="paid">Paid</option>
               <option value="cancelled">Cancelled</option>
-              <option value="reconciled">Reconciled</option>
             </select>
             <input
               type="date"
@@ -589,6 +630,7 @@ const Transactions = () => {
           <span>{selectedIds.length} selected</span>
           <button
             className="btn btn-sm"
+            disabled={isSubmitting}
             onClick={() => handleBulkUpdate("paid")}
           >
             Mark Paid
@@ -604,91 +646,108 @@ const Transactions = () => {
           </button>
         </div>
       )}
-
-      <div className="transactions-table-container">
-        <table className="transactions-table">
-          <thead>
-            <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedIds(transactions.map((t) => t._id));
-                    } else {
-                      setSelectedIds([]);
-                    }
-                  }}
-                />
-              </th>
-              <th>Date</th>
-              <th>Entity</th>
-              <th>Type</th>
-              <th>Category</th>
-              <th>Party</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((txn) => (
-              <tr key={txn._id}>
-                <td>
+      {loading ? (
+        <div className="loading">Loading transactions...</div>
+      ) : (
+        <div className="transactions-table-container">
+          <table className="transactions-table">
+            <thead>
+              <tr>
+                <th>
                   <input
                     type="checkbox"
-                    checked={selectedIds.includes(txn._id)}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedIds([...selectedIds, txn._id]);
+                        setSelectedIds(transactions.map((t) => t._id));
                       } else {
-                        setSelectedIds(
-                          selectedIds.filter((id) => id !== txn._id),
-                        );
+                        setSelectedIds([]);
                       }
                     }}
                   />
-                </td>
-                <td>{formatDate(txn.transactionDate)}</td>
-                <td>{txn.entity?.name}</td>
-                <td>
-                  <span className={`badge ${getTypeBadge(txn.type)}`}>
-                    {txn.type}
-                  </span>
-                </td>
-                <td>{txn.category?.name}</td>
-                <td>{txn.partyName}</td>
-                <td
-                  className={
-                    txn.type === "expense"
-                      ? "amount-negative"
-                      : "amount-positive"
-                  }
-                >
-                  {formatCurrency(txn.totalAmount)}
-                </td>
-                <td>
-                  <span className={`badge ${getStatusBadge(txn.status)}`}>
-                    {txn.status}
-                  </span>
-                </td>
-                <td className="actions-cell">
-                  <button className="btn-icon" onClick={() => handleEdit(txn)}>
-                    <FiEdit />
-                  </button>
-                  <button
-                    className="btn-icon danger"
-                    title="Delete"
-                    onClick={() => handleDelete(txn._id)}
-                  >
-                    <FaTrash />
-                  </button>
-                </td>
+                </th>
+                <th>Date</th>
+                <th>Entity</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th>Party</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {transactions?.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="empty-cell">
+                    <div className="empty-state">
+                      <h3>No Transactions Found</h3>
+                      <p>Try adjusting filters or create a new transaction.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                transactions.map((txn) => (
+                  <tr key={txn._id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(txn._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds([...selectedIds, txn._id]);
+                          } else {
+                            setSelectedIds(
+                              selectedIds.filter((id) => id !== txn._id),
+                            );
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>{formatDate(txn.transactionDate)}</td>
+                    <td>{txn.entity?.name}</td>
+                    <td>
+                      <span className={`badge ${getTypeBadge(txn.type)}`}>
+                        {txn.type}
+                      </span>
+                    </td>
+                    <td>{txn.category?.name}</td>
+                    <td>{txn.partyName}</td>
+                    <td
+                      className={
+                        txn.type === "expense"
+                          ? "amount-negative"
+                          : "amount-positive"
+                      }
+                    >
+                      {formatCurrency(txn.totalAmount)}
+                    </td>
+                    <td>
+                      <span className={`badge ${getStatusBadge(txn.status)}`}>
+                        {txn.status}
+                      </span>
+                    </td>
+                    <td className="actions-cell">
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleEdit(txn)}
+                      >
+                        <FiEdit />
+                      </button>
+                      <button
+                        className="btn-icon danger"
+                        title="Delete"
+                        onClick={() => handleDelete(txn._id)}
+                      >
+                        <FaTrash />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {pagination.totalPages > 1 && (
         <div className="pagination">
@@ -744,7 +803,9 @@ const Transactions = () => {
             <form onSubmit={handleSubmit} className="transaction-form">
               <div className="form-grid">
                 <div className="form-group">
-                  <label>Entity *</label>
+                  <label>
+                    Entity <RequiredStar />
+                  </label>
                   <select
                     name="entity"
                     value={formData.entity}
@@ -761,7 +822,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Bank Account *</label>
+                  <label>
+                    Bank Account <RequiredStar />
+                  </label>
                   <select
                     name="bankAccount"
                     value={formData.bankAccount}
@@ -780,7 +843,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Date *</label>
+                  <label>
+                    Date <RequiredStar />
+                  </label>
                   <input
                     type="date"
                     name="transactionDate"
@@ -791,7 +856,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Type *</label>
+                  <label>
+                    Type <RequiredStar />
+                  </label>
                   <select
                     name="type"
                     value={formData.type}
@@ -807,7 +874,7 @@ const Transactions = () => {
 
                 <div className="form-group">
                   <label>
-                    Category *
+                    Category <RequiredStar />
                     <FaCog
                       style={{ marginLeft: 8, cursor: "pointer" }}
                       onClick={() => setShowCategoryModal(true)}
@@ -853,7 +920,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Party Name *</label>
+                  <label>
+                    Party Name <RequiredStar />
+                  </label>
                   <input
                     type="text"
                     name="partyName"
@@ -864,7 +933,9 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Amount *</label>
+                  <label>
+                    Amount <RequiredStar />
+                  </label>
                   <input
                     type="number"
                     name="amount"
@@ -892,11 +963,14 @@ const Transactions = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Status</label>
+                  <label>
+                    Status <RequiredStar />
+                  </label>
                   <select
                     name="status"
                     value={formData.status}
                     onChange={handleInputChange}
+                    required
                   >
                     <option value="pending">Pending</option>
                     <option value="paid">Paid</option>
@@ -1048,13 +1122,27 @@ const Transactions = () => {
                       onChange={(e) => setNewCategory(e.target.value)}
                     />
                     <button
+                      disabled={isSubmitting}
                       onClick={async () => {
-                        await categoryAPI.create({ name: newCategory });
-                        setNewCategory("");
-                        fetchCategories();
+                        if (isSubmitting) return;
+                        if (!newCategory.trim()) return;
+
+                        try {
+                          setIsSubmitting(true);
+                          await categoryAPI.create({ name: newCategory });
+                          setNewCategory("");
+                          fetchCategories();
+                        } catch (error) {
+                          toast.error(
+                            error.response?.data?.message ||
+                              "Failed to add category",
+                          );
+                        } finally {
+                          setIsSubmitting(false);
+                        }
                       }}
                     >
-                      + Add
+                      {isSubmitting ? "Adding..." : "+ Add"}
                     </button>
                   </div>
 
@@ -1091,7 +1179,7 @@ const Transactions = () => {
                                 setNewCategory(cat.name);
                               }}
                             >
-                              <FaEdit/>
+                              <FaEdit />
                             </button>
                             <button
                               className="sub"
@@ -1105,12 +1193,25 @@ const Transactions = () => {
                             </button>
                             <button
                               className="btn-icon danger"
+                              disabled={isSubmitting}
                               onClick={async () => {
-                                await categoryAPI.delete(cat._id);
-                                fetchCategories();
+                                if (isSubmitting) return;
+
+                                try {
+                                  setIsSubmitting(true);
+                                  await categoryAPI.delete(cat._id);
+                                  fetchCategories();
+                                } catch (error) {
+                                  toast.error(
+                                    error.response?.data?.message ||
+                                      "Failed to delete category",
+                                  );
+                                } finally {
+                                  setIsSubmitting(false);
+                                }
                               }}
                             >
-                              <FaTrash/>
+                              <FaTrash />
                             </button>
                           </div>
                         </>
@@ -1123,7 +1224,7 @@ const Transactions = () => {
               {/* ================= SUB CATEGORY TAB ================= */}
               {activeTab === "sub" && selectedCategory && (
                 <>
-                  <div className="subcategory-header">
+                  <div className="transaction-subcategory-header">
                     <div>
                       <h4>Sub Categories</h4>
                       <p>
@@ -1148,16 +1249,30 @@ const Transactions = () => {
                       onChange={(e) => setNewSubCategory(e.target.value)}
                     />
                     <button
+                      disabled={isSubmitting}
                       onClick={async () => {
-                        await subCategoryAPI.create({
-                          name: newSubCategory,
-                          category: selectedCategory._id,
-                        });
-                        setNewSubCategory("");
-                        fetchSubCategories(selectedCategory._id);
+                        if (isSubmitting) return;
+                        if (!newSubCategory.trim()) return;
+
+                        try {
+                          setIsSubmitting(true);
+                          await subCategoryAPI.create({
+                            name: newSubCategory,
+                            category: selectedCategory._id,
+                          });
+                          setNewSubCategory("");
+                          fetchSubCategories(selectedCategory._id);
+                        } catch (error) {
+                          toast.error(
+                            error.response?.data?.message ||
+                              "Failed to add subcategory",
+                          );
+                        } finally {
+                          setIsSubmitting(false);
+                        }
                       }}
                     >
-                      + Add
+                      {isSubmitting ? "Adding..." : "+ Add"}
                     </button>
                   </div>
 
@@ -1188,25 +1303,35 @@ const Transactions = () => {
                           <span>{sub.name}</span>
                           <div className="actions">
                             <button
-                            className="btn-icon"
+                              className="btn-icon"
                               onClick={() => {
                                 setEditingSubCategory(sub._id);
                                 setNewSubCategory(sub.name);
                               }}
                             >
-                              <FaEdit/>
+                              <FaEdit />
                             </button>
-                            <button 
-                             className="btn-icon danger"
-                              onClick={() =>
-                                subCategoryAPI
-                                  .delete(sub._id)
-                                  .then(() =>
-                                    fetchSubCategories(selectedCategory._id),
-                                  )
-                              }
+                            <button
+                              className="btn-icon danger"
+                              disabled={isSubmitting}
+                              onClick={async () => {
+                                if (isSubmitting) return;
+
+                                try {
+                                  setIsSubmitting(true);
+                                  await subCategoryAPI.delete(sub._id);
+                                  fetchSubCategories(selectedCategory._id);
+                                } catch (error) {
+                                  toast.error(
+                                    error.response?.data?.message ||
+                                      "Failed to delete subcategory",
+                                  );
+                                } finally {
+                                  setIsSubmitting(false);
+                                }
+                              }}
                             >
-                              <FaTrash/>
+                              <FaTrash />
                             </button>
                           </div>
                         </>

@@ -292,3 +292,8 @@ tr:hover {
   color: #1e40af;
   border: 1px solid #3b82f6;
 }
+
+label::after {
+  content: "";
+  color: red;
+}

@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { deleteWithConfirm } from "../utils/deleteWithConfirm";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
+import RequiredStar from "../components/RequiredStar";
 
 import {
   FaPlus,
@@ -20,11 +21,13 @@ const Customers = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [filters, setFilters] = useState({
     entity: "",
     category: "",
     isActive: "true",
+    search: "",
   });
 
   const [formData, setFormData] = useState({
@@ -87,17 +90,21 @@ const Customers = () => {
   ];
 
   useEffect(() => {
-    fetchCustomers();
     fetchEntities();
+  }, []);
+
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      fetchCustomers();
+    }, 500);
+
+    return () => clearTimeout(delay);
   }, [filters]);
 
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const response = await customerAPI.getAll({
-        ...filters,
-        search: searchTerm,
-      });
+      const response = await customerAPI.getAll(filters);
       setCustomers(response.data.data);
     } catch (error) {
       toast.error("Failed to fetch customers");
@@ -114,11 +121,6 @@ const Customers = () => {
     } catch (error) {
       console.error("Failed to fetch entities:", error);
     }
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchCustomers();
   };
 
   const handleOpenModal = (customer = null) => {
@@ -190,6 +192,23 @@ const Customers = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
+    if (name === "creditTerms") {
+      if (value !== "custom") {
+        setFormData((prev) => ({
+          ...prev,
+          creditTerms: value,
+          customCreditDays: "",
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          creditTerms: value,
+        }));
+      }
+      return;
+    }
+
+    // Handle nested fields
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
       setFormData((prev) => ({
@@ -210,26 +229,51 @@ const Customers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+
+    if (
+      !formData.entity ||
+      !formData.name ||
+      !formData.billingAddress.line1 ||
+      !formData.billingAddress.city ||
+      !formData.billingAddress.state ||
+      !formData.billingAddress.pincode
+    ) {
+      return toast.error("Please fill all mandatory fields");
+    }
+
     try {
-      // Clean up phone fields - remove if only country code is present
-      const cleanedData = {
-        ...formData,
-        phone: formData.phone && formData.phone.length > 3 ? formData.phone : "",
-        alternatePhone: formData.alternatePhone && formData.alternatePhone.length > 3 ? formData.alternatePhone : "",
-      };
+      setIsSubmitting(true);
+
+      const cleanData = { ...formData };
+
+      if (!cleanData.pan) delete cleanData.pan;
+      if (!cleanData.gstin) delete cleanData.gstin;
+      if (!cleanData.notes) delete cleanData.notes;
+
+      // Clean up phone fields - remove if only country code or too short
+      if (!cleanData.phone || cleanData.phone.length < 10) {
+        delete cleanData.phone;
+      }
+
+      if (!cleanData.alternatePhone || cleanData.alternatePhone.length < 10) {
+        delete cleanData.alternatePhone;
+      }
 
       if (editingCustomer) {
-        await customerAPI.update(editingCustomer._id, cleanedData);
+        await customerAPI.update(editingCustomer._id, cleanData);
         toast.success("Customer updated successfully");
       } else {
-        await customerAPI.create(cleanedData);
+        await customerAPI.create(cleanData);
         toast.success("Customer created successfully");
       }
+
       handleCloseModal();
       fetchCustomers();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save customer");
-      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -262,26 +306,26 @@ const Customers = () => {
     <div className="customers-page">
       <div className="page-header">
         <h1>Customers</h1>
-        <button className="add-customer" onClick={() => handleOpenModal()}>
+        <button className="add-customer" onClick={() => handleOpenModal()} disabled={isSubmitting}>
           <FaPlus /> Add Customer
         </button>
       </div>
 
       <div className="filters-section">
-        <form onSubmit={handleSearch} className="search-form">
+        <form className="search-form">
           <div className="search-input-wrapper">
             <FaSearch className="search-icon" />
             <input
-              type="text"
+              type="search"
               placeholder="Search by name, code, or contact person..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.search}
+              onChange={(e) =>
+                setFilters({ ...filters, search: e.target.value })
+              }
               className="search-input"
             />
           </div>
-          {/* <button type="submit" className="customer-search">
-            Search
-          </button> */}
+         
           <div className="filter-controls">
             <select
               value={filters.entity}
@@ -450,7 +494,9 @@ const Customers = () => {
                 <h3>Basic Information</h3>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Entity *</label>
+                    <label>
+                      Entity <RequiredStar />
+                    </label>
                     <select
                       name="entity"
                       value={formData.entity}
@@ -467,7 +513,9 @@ const Customers = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Customer Name *</label>
+                    <label>
+                      Customer Name <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="name"
@@ -630,7 +678,9 @@ const Customers = () => {
               <div className="form-section">
                 <h3>Billing Address</h3>
                 <div className="form-group">
-                  <label>Address Line 1 *</label>
+                  <label>
+                    Address Line 1 <RequiredStar />
+                  </label>
                   <input
                     type="text"
                     name="billingAddress.line1"
@@ -654,7 +704,9 @@ const Customers = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>City *</label>
+                    <label>
+                      City <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="billingAddress.city"
@@ -666,7 +718,9 @@ const Customers = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>State *</label>
+                    <label>
+                      State <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="billingAddress.state"
@@ -680,7 +734,9 @@ const Customers = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Pincode *</label>
+                    <label>
+                      Pincode <RequiredStar />
+                    </label>
                     <input
                       type="text"
                       name="billingAddress.pincode"
@@ -724,7 +780,9 @@ const Customers = () => {
 
                   {formData.creditTerms === "custom" && (
                     <div className="form-group">
-                      <label>Custom Days</label>
+                      <label>
+                        Custom Days <RequiredStar />
+                      </label>
                       <input
                         type="number"
                         name="customCreditDays"
@@ -732,6 +790,7 @@ const Customers = () => {
                         onChange={handleChange}
                         min="0"
                         max="365"
+                        required
                       />
                     </div>
                   )}
@@ -771,8 +830,16 @@ const Customers = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="customer-create">
-                  {editingCustomer ? "Update" : "Create"} Customer
+                <button
+                  type="submit"
+                  className="customer-create"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Processing..."
+                    : editingCustomer
+                      ? "Update Customer"
+                      : "Create Customer"}
                 </button>
               </div>
             </form>

@@ -7,7 +7,6 @@ const { logAction } = require("../middleware/audit");
 const mongoose = require("mongoose");
 const { Parser } = require("json2csv");
 
-
 // Get all payments with filters
 exports.getPayments = async (req, res) => {
   try {
@@ -129,7 +128,6 @@ exports.createPayment = async (req, res) => {
     const userId = req.user._id;
     const userRole = req.user.role;
 
-    // Only admin and accountant can create payments
     if (userRole === "employee" || userRole === "observer") {
       return res.status(403).json({
         success: false,
@@ -137,47 +135,122 @@ exports.createPayment = async (req, res) => {
       });
     }
 
-    const { paymentType, customer, vendor, entity, bankAccount } = req.body;
+    const {
+      entity,
+      paymentType,
+      customer,
+      vendor,
+      paymentDate,
+      amount,
+      paymentMode,
+      bankAccount,
+      tdsDeducted,
+      allocations,
+    } = req.body;
 
-    // Validate customer/vendor based on payment type
-    if (paymentType === "received" && !customer) {
+    // ================= REQUIRED FIELD VALIDATIONS =================
+
+    if (!entity)
+      return res
+        .status(400)
+        .json({ success: false, message: "Entity is required" });
+
+    if (!paymentType)
+      return res
+        .status(400)
+        .json({ success: false, message: "Payment type is required" });
+
+    if (!paymentDate)
+      return res
+        .status(400)
+        .json({ success: false, message: "Payment date is required" });
+
+    if (!paymentMode)
+      return res
+        .status(400)
+        .json({ success: false, message: "Payment mode is required" });
+
+    if (!amount || amount <= 0)
+      return res
+        .status(400)
+        .json({ success: false, message: "Amount must be greater than 0" });
+
+    if (tdsDeducted && tdsDeducted < 0)
+      return res
+        .status(400)
+        .json({ success: false, message: "TDS cannot be negative" });
+
+    // ================= CUSTOMER / VENDOR VALIDATION =================
+
+    if (paymentType === "received") {
+      if (!customer)
+        return res.status(400).json({
+          success: false,
+          message: "Customer is required for received payment",
+        });
+      if (vendor)
+        return res.status(400).json({
+          success: false,
+          message: "Vendor should not be provided for received payment",
+        });
+    }
+
+    if (paymentType === "made") {
+      if (!vendor)
+        return res.status(400).json({
+          success: false,
+          message: "Vendor is required for made payment",
+        });
+      if (customer)
+        return res.status(400).json({
+          success: false,
+          message: "Customer should not be provided for made payment",
+        });
+    }
+
+    // ================= BANK VALIDATION =================
+
+    if (paymentMode !== "cash" && !bankAccount) {
       return res.status(400).json({
         success: false,
-        message: "Customer is required for received payment",
-      });
-    }
-    if (paymentType === "made" && !vendor) {
-      return res.status(400).json({
-        success: false,
-        message: "Vendor is required for made payment",
+        message: "Bank account is required for non-cash payments",
       });
     }
 
-    // Generate payment number if not provided
+    // ================= PREVENT MANUAL FIELDS =================
+
+    delete req.body.allocatedAmount;
+    delete req.body.unallocatedAmount;
+    delete req.body.isReconciled;
+    delete req.body.reconciledDate;
+
+    // ================= GENERATE PAYMENT NUMBER =================
+
     if (!req.body.paymentNumber) {
-      const paymentDate = req.body.paymentDate
-        ? new Date(req.body.paymentDate)
-        : new Date();
       req.body.paymentNumber = await Payment.generatePaymentNumber(
         entity,
         paymentType,
-        paymentDate
+        new Date(paymentDate),
       );
     }
+    if (req.body.vendor === "") req.body.vendor = undefined;
+    if (req.body.customer === "") req.body.customer = undefined;
+    if (req.body.bankAccount === "") req.body.bankAccount = undefined;
 
-    // Create payment
     const payment = await Payment.create({
       ...req.body,
       createdBy: userId,
     });
 
-    // Update bank account balance if status is cleared
-    if (payment.status === "cleared" && bankAccount) {
-      const amount =
-        paymentType === "received" ? payment.amount : -payment.amount;
-      const account = await BankAccount.findById(bankAccount);
+    // ================= UPDATE BANK BALANCE =================
+
+    if (payment.status === "cleared" && payment.bankAccount) {
+      const account = await BankAccount.findById(payment.bankAccount);
       if (account) {
-        await account.updateBalance(amount);
+        const effect =
+          payment.paymentType === "received" ? payment.amount : -payment.amount;
+
+        await account.updateBalance(effect);
       }
     }
 
@@ -188,7 +261,7 @@ exports.createPayment = async (req, res) => {
       payment._id,
       null,
       payment.toObject(),
-      req
+      req,
     );
 
     res.status(201).json({
@@ -197,11 +270,10 @@ exports.createPayment = async (req, res) => {
       data: payment,
     });
   } catch (error) {
-    console.error("Error creating payment:", error);
+    console.log(error);
     res.status(400).json({
       success: false,
-      message: "Failed to create payment",
-      error: error.message,
+      message: error.message || "Failed to create payment",
     });
   }
 };
@@ -212,7 +284,6 @@ exports.updatePayment = async (req, res) => {
     const userId = req.user._id;
     const userRole = req.user.role;
 
-    // Only admin and accountant can update payments
     if (userRole === "employee" || userRole === "observer") {
       return res.status(403).json({
         success: false,
@@ -228,7 +299,6 @@ exports.updatePayment = async (req, res) => {
       });
     }
 
-    // Cannot update cancelled payments
     if (payment.status === "cancelled") {
       return res.status(400).json({
         success: false,
@@ -238,26 +308,54 @@ exports.updatePayment = async (req, res) => {
 
     const oldData = payment.toObject();
     const oldStatus = payment.status;
+    const oldAmount = payment.amount;
 
-    // Update payment
+    // ============= PROTECTED FIELDS =============
+
+    delete req.body.entity;
+    delete req.body.paymentType;
+    delete req.body.allocatedAmount;
+    delete req.body.unallocatedAmount;
+    delete req.body.isReconciled;
+    delete req.body.reconciledDate;
+    delete req.body.createdBy;
+
+    // ============= AMOUNT CHANGE VALIDATION =============
+
+    if (
+      req.body.amount &&
+      req.body.amount !== oldAmount &&
+      payment.allocations.length > 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot change amount after allocations exist",
+      });
+    }
+
     Object.assign(payment, req.body, { updatedBy: userId });
+
     await payment.save();
 
-    // Update bank balance if status changed
-    if (oldStatus !== payment.status && payment.bankAccount) {
+    // ============= BANK BALANCE UPDATE LOGIC =============
+
+    if (payment.bankAccount) {
       const account = await BankAccount.findById(payment.bankAccount);
       if (account) {
-        const amount =
+        const oldEffect =
+          payment.paymentType === "received" ? oldAmount : -oldAmount;
+
+        const newEffect =
           payment.paymentType === "received" ? payment.amount : -payment.amount;
 
-        // Reverse old status effect
+        // Reverse old cleared effect
         if (oldStatus === "cleared") {
-          await account.updateBalance(-amount);
+          await account.updateBalance(-oldEffect);
         }
 
-        // Apply new status effect
+        // Apply new cleared effect
         if (payment.status === "cleared") {
-          await account.updateBalance(amount);
+          await account.updateBalance(newEffect);
         }
       }
     }
@@ -269,7 +367,7 @@ exports.updatePayment = async (req, res) => {
       payment._id,
       oldData,
       payment.toObject(),
-      req
+      req,
     );
 
     res.json({
@@ -278,7 +376,7 @@ exports.updatePayment = async (req, res) => {
       data: payment,
     });
   } catch (error) {
-    console.error("Error updating payment:", error);
+    console.log(error)
     res.status(400).json({
       success: false,
       message: "Failed to update payment",
@@ -341,7 +439,7 @@ exports.deletePayment = async (req, res) => {
       payment._id,
       oldData,
       { status: "cancelled" },
-      req
+      req,
     );
 
     res.json({
@@ -397,7 +495,7 @@ exports.allocatePayment = async (req, res) => {
       payment._id,
       null,
       { action: "allocate", invoiceId, amount },
-      req
+      req,
     );
 
     res.json({
@@ -439,7 +537,7 @@ exports.getUnallocatedPayments = async (req, res) => {
       .populate("customer", "name customerCode")
       .populate("vendor", "name vendorCode")
       .select(
-        "paymentNumber paymentDate amount allocatedAmount unallocatedAmount paymentType"
+        "paymentNumber paymentDate amount allocatedAmount unallocatedAmount paymentType",
       )
       .sort({ paymentDate: -1 });
 
@@ -534,16 +632,9 @@ exports.getPaymentSummary = async (req, res) => {
   }
 };
 
-
 exports.exportPaymentsCSV = async (req, res) => {
   try {
-    const {
-      entity,
-      paymentType,
-      status,
-      paymentMethod,
-      search,
-    } = req.query;
+    const { entity, paymentType, status, paymentMethod, search } = req.query;
 
     const userRole = req.user.role;
     const userEntity = req.user.entity;
@@ -576,32 +667,21 @@ exports.exportPaymentsCSV = async (req, res) => {
 
     const data = payments.map((p) => ({
       Payment_No: p.paymentNumber,
-      Type:
-        p.paymentType === "payment_received"
-          ? "Received"
-          : "Made",
+      Type: p.paymentType === "payment_received" ? "Received" : "Made",
       Entity: p.entity?.name || "",
       Party: p.partyName || "",
       Date: p.paymentDate?.toISOString().split("T")[0],
       Amount: p.amount,
       Allocated:
-        p.allocations?.reduce(
-          (sum, a) => sum + a.allocatedAmount,
-          0
-        ) || 0,
+        p.allocations?.reduce((sum, a) => sum + a.allocatedAmount, 0) || 0,
       Unallocated:
         p.amount -
-        (p.allocations?.reduce(
-          (sum, a) => sum + a.allocatedAmount,
-          0
-        ) || 0),
+        (p.allocations?.reduce((sum, a) => sum + a.allocatedAmount, 0) || 0),
       Method: p.paymentMethod,
       Status: p.status,
       Reference: p.referenceNumber || "",
       Bank:
-        p.bankAccount?.accountName +
-          " - " +
-          p.bankAccount?.accountNumber || "",
+        p.bankAccount?.accountName + " - " + p.bankAccount?.accountNumber || "",
       Created_At: p.createdAt?.toISOString().split("T")[0],
     }));
 
@@ -611,7 +691,7 @@ exports.exportPaymentsCSV = async (req, res) => {
     res.setHeader("Content-Type", "text/csv");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=payments_${Date.now()}.csv`
+      `attachment; filename=payments_${Date.now()}.csv`,
     );
 
     return res.status(200).send(csv);

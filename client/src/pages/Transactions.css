@@ -49,6 +49,29 @@
   font-size: 0.95rem;
 }
 
+.empty-state {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 50vh;
+  color: #6c757d;
+  text-align: center;
+  
+}
+
+.empty-state h3 {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.empty-state p {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+
 .bulk-actions {
   background: #f0f4f8;
   padding: 1rem;
@@ -453,18 +476,8 @@
   gap: 8px;
 }
 
-/* .actions button {
-  padding: 6px 10px;
-  font-size: 14px;
-}
-
-/* Delete button */
-/* .actions button:last-child {
-  background: #e11d48;
-} */
-
 /* Sub Category Header */
-.subcategory-header {
+.transaction-subcategory-header {
   display: flex;
   justify-content: space-between;
   align-items: center;

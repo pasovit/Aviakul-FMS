@@ -120,7 +120,6 @@ exports.createInvoice = async (req, res) => {
     const userId = req.user._id;
     const userRole = req.user.role;
 
-    // Only admin and accountant can create invoices
     if (userRole === "employee" || userRole === "observer") {
       return res.status(403).json({
         success: false,
@@ -128,44 +127,98 @@ exports.createInvoice = async (req, res) => {
       });
     }
 
-    const { invoiceType, customer, vendor, entity } = req.body;
+    const {
+      entity,
+      invoiceType,
+      customer,
+      vendor,
+      invoiceDate,
+      dueDate,
+      lineItems,
+    } = req.body;
 
-    // Validate customer/vendor based on invoice type
-    if (invoiceType === "sales" && !customer) {
+    // ✅ Required field validations
+    if (!entity || !invoiceType || !invoiceDate || !dueDate) {
       return res.status(400).json({
         success: false,
-        message: "Customer is required for sales invoice",
+        message: "Entity, invoice type, invoice date and due date are required",
       });
     }
-    if (invoiceType === "purchase" && !vendor) {
+
+    if (!["sales", "purchase"].includes(invoiceType)) {
       return res.status(400).json({
         success: false,
-        message: "Vendor is required for purchase invoice",
+        message: "Invalid invoice type",
       });
     }
 
-    // // Generate invoice number if not provided
-    // if (!req.body.invoiceNumber) {
-    //   const invoiceDate = req.body.invoiceDate
-    //     ? new Date(req.body.invoiceDate)
-    //     : new Date();
-    //   req.body.invoiceNumber = await Invoice.generateInvoiceNumber(
-    //     entity,
-    //     invoiceType,
-    //     invoiceDate
-    //   );
-    // }
+    // ✅ Customer / Vendor validation
+    if (invoiceType === "sales") {
+      if (!customer) {
+        return res.status(400).json({
+          success: false,
+          message: "Customer is required for sales invoice",
+        });
+      }
+    }
 
-    // Create invoice
+    if (invoiceType === "purchase") {
+      if (!vendor) {
+        return res.status(400).json({
+          success: false,
+          message: "Vendor is required for purchase invoice",
+        });
+      }
+    }
+
+    // ✅ Line items validation
+    if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one line item is required",
+      });
+    }
+
+    for (const item of lineItems) {
+      if (!item.description) {
+        return res.status(400).json({
+          success: false,
+          message: "Line item description is required",
+        });
+      }
+
+      if (!item.quantity || item.quantity <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Line item quantity must be greater than 0",
+        });
+      }
+
+      if (item.rate === undefined || item.rate < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Line item rate cannot be negative",
+        });
+      }
+    }
+
+    // ✅ Date validation
+    if (new Date(dueDate) < new Date(invoiceDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "Due date cannot be before invoice date",
+      });
+    }
+
     const invoice = await Invoice.create({
       ...req.body,
       createdBy: userId,
     });
 
-    // Update customer/vendor outstanding
-    if (invoiceType === "sales" && customer) {
+    // ✅ Update outstanding
+    if (invoiceType === "sales") {
       await Customer.updateOutstanding(customer, invoice.amountDue);
-    } else if (invoiceType === "purchase" && vendor) {
+    } else {
       await Vendor.updateOutstanding(vendor, invoice.amountDue);
     }
 
@@ -176,7 +229,7 @@ exports.createInvoice = async (req, res) => {
       invoice._id,
       null,
       invoice.toObject(),
-      req
+      req,
     );
 
     res.status(201).json({
@@ -200,7 +253,6 @@ exports.updateInvoice = async (req, res) => {
     const userId = req.user._id;
     const userRole = req.user.role;
 
-    // Only admin and accountant can update invoices
     if (userRole === "employee" || userRole === "observer") {
       return res.status(403).json({
         success: false,
@@ -216,7 +268,6 @@ exports.updateInvoice = async (req, res) => {
       });
     }
 
-    // Cannot update paid or cancelled invoices
     if (invoice.status === "paid" || invoice.status === "cancelled") {
       return res.status(400).json({
         success: false,
@@ -227,16 +278,66 @@ exports.updateInvoice = async (req, res) => {
     const oldData = invoice.toObject();
     const oldAmountDue = invoice.amountDue;
 
-    // Update invoice
     Object.assign(invoice, req.body, { updatedBy: userId });
+
+    // ✅ Re-validate required fields
+    if (
+      !invoice.entity ||
+      !invoice.invoiceType ||
+      !invoice.invoiceDate ||
+      !invoice.dueDate
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Mandatory fields cannot be empty",
+      });
+    }
+
+    if (invoice.invoiceType === "sales" && !invoice.customer) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer is required for sales invoice",
+      });
+    }
+
+    if (invoice.invoiceType === "purchase" && !invoice.vendor) {
+      return res.status(400).json({
+        success: false,
+        message: "Vendor is required for purchase invoice",
+      });
+    }
+
+    if (!invoice.lineItems || invoice.lineItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one line item is required",
+      });
+    }
+
+    for (const item of invoice.lineItems) {
+      if (!item.description || item.quantity <= 0 || item.rate < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid line item details",
+        });
+      }
+    }
+
+    if (new Date(invoice.dueDate) < new Date(invoice.invoiceDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "Due date cannot be before invoice date",
+      });
+    }
+
     await invoice.save();
 
-    // Adjust customer/vendor outstanding if amount changed
     const amountChange = invoice.amountDue - oldAmountDue;
+
     if (amountChange !== 0) {
-      if (invoice.invoiceType === "sales" && invoice.customer) {
+      if (invoice.invoiceType === "sales") {
         await Customer.updateOutstanding(invoice.customer, amountChange);
-      } else if (invoice.invoiceType === "purchase" && invoice.vendor) {
+      } else {
         await Vendor.updateOutstanding(invoice.vendor, amountChange);
       }
     }
@@ -248,7 +349,7 @@ exports.updateInvoice = async (req, res) => {
       invoice._id,
       oldData,
       invoice.toObject(),
-      req
+      req,
     );
 
     res.json({
@@ -316,7 +417,7 @@ exports.deleteInvoice = async (req, res) => {
       invoice._id,
       oldData,
       { status: "cancelled" },
-      req
+      req,
     );
 
     res.json({
@@ -380,7 +481,7 @@ exports.getAgingReport = async (req, res) => {
     })
       .populate(invoiceType === "sales" ? "customer" : "vendor", "name")
       .select(
-        "invoiceNumber invoiceDate dueDate amountDue daysOverdue agingBucket"
+        "invoiceNumber invoiceDate dueDate amountDue daysOverdue agingBucket",
       )
       .sort({ daysOverdue: -1 })
       .limit(10);
@@ -528,7 +629,7 @@ exports.exportCSV = async (req, res) => {
     res.setHeader("Content-Type", "text/csv");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=invoices_${Date.now()}.csv`
+      `attachment; filename=invoices_${Date.now()}.csv`,
     );
 
     return res.status(200).send(csv);
