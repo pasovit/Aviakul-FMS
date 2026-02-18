@@ -337,18 +337,22 @@ const Transactions = () => {
       setIsSubmitting(false);
     }
   };
-
   const handleBulkUpdate = async (status) => {
+    if (isSubmitting) return;
+
     if (selectedIds.length === 0) {
       toast.warning("Please select transactions first");
       return;
     }
 
     try {
+      setIsSubmitting(true);
+
       await transactionAPI.bulkUpdateStatus({
         transactionIds: selectedIds,
         status,
       });
+
       toast.success(`${selectedIds.length} transactions marked as ${status}`);
       setSelectedIds([]);
       fetchTransactions();
@@ -356,6 +360,8 @@ const Transactions = () => {
       toast.error(
         error.response?.data?.message || "Failed to update transactions",
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -511,10 +517,6 @@ const Transactions = () => {
     fetchSubCategories(selectedCategoryForSub);
   };
 
-  // if (loading) {
-  //   return <div className="loading">Loading transactions...</div>;
-  // }
-
   return (
     <div
       className={`transactions-page ${isSubmitting ? "transactions-disabled" : ""}`}
@@ -554,6 +556,7 @@ const Transactions = () => {
           <button
             className="add-transaction"
             onClick={() => setShowModal(true)}
+            disabled={isSubmitting}
           >
             <FaPlus /> Add Transaction
           </button>
@@ -627,6 +630,7 @@ const Transactions = () => {
           <span>{selectedIds.length} selected</span>
           <button
             className="btn btn-sm"
+            disabled={isSubmitting}
             onClick={() => handleBulkUpdate("paid")}
           >
             Mark Paid
@@ -1118,13 +1122,27 @@ const Transactions = () => {
                       onChange={(e) => setNewCategory(e.target.value)}
                     />
                     <button
+                      disabled={isSubmitting}
                       onClick={async () => {
-                        await categoryAPI.create({ name: newCategory });
-                        setNewCategory("");
-                        fetchCategories();
+                        if (isSubmitting) return;
+                        if (!newCategory.trim()) return;
+
+                        try {
+                          setIsSubmitting(true);
+                          await categoryAPI.create({ name: newCategory });
+                          setNewCategory("");
+                          fetchCategories();
+                        } catch (error) {
+                          toast.error(
+                            error.response?.data?.message ||
+                              "Failed to add category",
+                          );
+                        } finally {
+                          setIsSubmitting(false);
+                        }
                       }}
                     >
-                      + Add
+                      {isSubmitting ? "Adding..." : "+ Add"}
                     </button>
                   </div>
 
@@ -1175,9 +1193,22 @@ const Transactions = () => {
                             </button>
                             <button
                               className="btn-icon danger"
+                              disabled={isSubmitting}
                               onClick={async () => {
-                                await categoryAPI.delete(cat._id);
-                                fetchCategories();
+                                if (isSubmitting) return;
+
+                                try {
+                                  setIsSubmitting(true);
+                                  await categoryAPI.delete(cat._id);
+                                  fetchCategories();
+                                } catch (error) {
+                                  toast.error(
+                                    error.response?.data?.message ||
+                                      "Failed to delete category",
+                                  );
+                                } finally {
+                                  setIsSubmitting(false);
+                                }
                               }}
                             >
                               <FaTrash />
@@ -1218,16 +1249,30 @@ const Transactions = () => {
                       onChange={(e) => setNewSubCategory(e.target.value)}
                     />
                     <button
+                      disabled={isSubmitting}
                       onClick={async () => {
-                        await subCategoryAPI.create({
-                          name: newSubCategory,
-                          category: selectedCategory._id,
-                        });
-                        setNewSubCategory("");
-                        fetchSubCategories(selectedCategory._id);
+                        if (isSubmitting) return;
+                        if (!newSubCategory.trim()) return;
+
+                        try {
+                          setIsSubmitting(true);
+                          await subCategoryAPI.create({
+                            name: newSubCategory,
+                            category: selectedCategory._id,
+                          });
+                          setNewSubCategory("");
+                          fetchSubCategories(selectedCategory._id);
+                        } catch (error) {
+                          toast.error(
+                            error.response?.data?.message ||
+                              "Failed to add subcategory",
+                          );
+                        } finally {
+                          setIsSubmitting(false);
+                        }
                       }}
                     >
-                      + Add
+                      {isSubmitting ? "Adding..." : "+ Add"}
                     </button>
                   </div>
 
@@ -1268,13 +1313,23 @@ const Transactions = () => {
                             </button>
                             <button
                               className="btn-icon danger"
-                              onClick={() =>
-                                subCategoryAPI
-                                  .delete(sub._id)
-                                  .then(() =>
-                                    fetchSubCategories(selectedCategory._id),
-                                  )
-                              }
+                              disabled={isSubmitting}
+                              onClick={async () => {
+                                if (isSubmitting) return;
+
+                                try {
+                                  setIsSubmitting(true);
+                                  await subCategoryAPI.delete(sub._id);
+                                  fetchSubCategories(selectedCategory._id);
+                                } catch (error) {
+                                  toast.error(
+                                    error.response?.data?.message ||
+                                      "Failed to delete subcategory",
+                                  );
+                                } finally {
+                                  setIsSubmitting(false);
+                                }
+                              }}
                             >
                               <FaTrash />
                             </button>

@@ -228,15 +228,17 @@ invoiceSchema.virtual("isOverdue").get(function () {
 });
 
 // Pre-save hook to calculate line item totals
-invoiceLineItemSchema.pre("save", function (next) {
+invoiceLineItemSchema.pre("validate", function (next) {
   this.amount = this.quantity * this.rate;
   this.taxAmount = (this.amount * this.taxRate) / 100;
   this.totalAmount = this.amount + this.taxAmount;
   next();
 });
 
+
 // Pre-save hook for invoice calculations
-invoiceSchema.pre("save", function (next) {
+invoiceSchema.pre("validate", function (next) {
+
   // Calculate line item totals
   this.lineItems.forEach((item) => {
     item.amount = item.quantity * item.rate;

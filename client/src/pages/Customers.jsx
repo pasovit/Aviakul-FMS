@@ -21,6 +21,8 @@ const Customers = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [filters, setFilters] = useState({
     entity: "",
     category: "",
@@ -227,48 +229,50 @@ const Customers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+
+    if (
+      !formData.entity ||
+      !formData.name ||
+      !formData.billingAddress.line1 ||
+      !formData.billingAddress.city ||
+      !formData.billingAddress.state ||
+      !formData.billingAddress.pincode
+    ) {
+      return toast.error("Please fill all mandatory fields");
+    }
+
     try {
-      if (
-        !formData.entity ||
-        !formData.name ||
-        !formData.billingAddress.line1 ||
-        !formData.billingAddress.city ||
-        !formData.billingAddress.state ||
-        !formData.billingAddress.pincode
-      ) {
-        toast.error("Please fill all mandatory fields");
-        return;
+      setIsSubmitting(true);
+
+      const cleanData = { ...formData };
+
+      if (!cleanData.pan) delete cleanData.pan;
+      if (!cleanData.gstin) delete cleanData.gstin;
+      if (!cleanData.notes) delete cleanData.notes;
+
+      if (!cleanData.phone || cleanData.phone.length < 10) {
+        delete cleanData.phone;
+      }
+
+      if (!cleanData.alternatePhone || cleanData.alternatePhone.length < 10) {
+        delete cleanData.alternatePhone;
       }
 
       if (editingCustomer) {
-        const cleanData = { ...formData };
-
-        if (!cleanData.pan) delete cleanData.pan;
-        if (!cleanData.gstin) delete cleanData.gstin;
-        if (!cleanData.notes) delete cleanData.notes;
-
-        if (!cleanData.phone || cleanData.phone.length < 10) {
-          cleanData.phone = "";
-        }
-
-        if (!cleanData.alternatePhone || cleanData.alternatePhone.length < 10) {
-          cleanData.alternatePhone = "";
-        }
-
         await customerAPI.update(editingCustomer._id, cleanData);
         toast.success("Customer updated successfully");
-        handleCloseModal();
-        fetchCustomers();
-        return;
       } else {
-        await customerAPI.create(formData);
+        await customerAPI.create(cleanData);
         toast.success("Customer created successfully");
       }
+
       handleCloseModal();
       fetchCustomers();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save customer");
-      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -301,7 +305,7 @@ const Customers = () => {
     <div className="customers-page">
       <div className="page-header">
         <h1>Customers</h1>
-        <button className="add-customer" onClick={() => handleOpenModal()}>
+        <button className="add-customer" onClick={() => handleOpenModal()} disabled={isSubmitting}>
           <FaPlus /> Add Customer
         </button>
       </div>
@@ -320,9 +324,7 @@ const Customers = () => {
               className="search-input"
             />
           </div>
-          {/* <button type="submit" className="customer-search">
-            Search
-          </button> */}
+         
           <div className="filter-controls">
             <select
               value={filters.entity}
@@ -827,8 +829,16 @@ const Customers = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="customer-create">
-                  {editingCustomer ? "Update" : "Create"} Customer
+                <button
+                  type="submit"
+                  className="customer-create"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Processing..."
+                    : editingCustomer
+                      ? "Update Customer"
+                      : "Create Customer"}
                 </button>
               </div>
             </form>

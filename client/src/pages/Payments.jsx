@@ -216,64 +216,63 @@ const Payments = () => {
 
     if (isSubmitting) return;
 
+    if (!formData.entity) {
+      toast.error("Entity is required");
+      return;
+    }
+
+    if (!formData.paymentType) {
+      toast.error("Payment type is required");
+      return;
+    }
+
+    if (!formData.paymentDate) {
+      toast.error("Payment date is required");
+      return;
+    }
+
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      toast.error("Amount must be greater than 0");
+      return;
+    }
+
+    if (!formData.paymentMode) {
+      toast.error("Payment method is required");
+      return;
+    }
+
+    if (formData.paymentType === "received" && !formData.customer) {
+      toast.error("Customer is required");
+      return;
+    }
+
+    if (formData.paymentType === "made" && !formData.vendor) {
+      toast.error("Vendor is required");
+      return;
+    }
+
+    if (formData.paymentMode !== "cash" && !formData.bankAccount) {
+      toast.error("Bank account is required for non-cash payments");
+      return;
+    }
+
+    if (formData.paymentMode === "cheque") {
+      if (!formData.chequeNumber) {
+        toast.error("Cheque number is required");
+        return;
+      }
+      if (!formData.chequeDate) {
+        toast.error("Cheque date is required");
+        return;
+      }
+    }
+
+    if (formData.paymentMode === "upi" && !formData.upiId) {
+      toast.error("UPI ID is required");
+      return;
+    }
     try {
       setIsSubmitting(true);
-
-      if (!formData.entity) {
-        toast.error("Entity is required");
-        return;
-      }
-
-      if (!formData.paymentType) {
-        toast.error("Payment type is required");
-        return;
-      }
-
-      if (!formData.paymentDate) {
-        toast.error("Payment date is required");
-        return;
-      }
-
-      if (!formData.amount || parseFloat(formData.amount) <= 0) {
-        toast.error("Amount must be greater than 0");
-        return;
-      }
-
-      if (!formData.paymentMode) {
-        toast.error("Payment method is required");
-        return;
-      }
-
-      if (formData.paymentType === "received" && !formData.customer) {
-        toast.error("Customer is required");
-        return;
-      }
-
-      if (formData.paymentType === "made" && !formData.vendor) {
-        toast.error("Vendor is required");
-        return;
-      }
-
-      if (formData.paymentMode !== "cash" && !formData.bankAccount) {
-        toast.error("Bank account is required for non-cash payments");
-        return;
-      }
-
-      if (formData.paymentMode === "cheque") {
-        if (!formData.chequeNumber) {
-          toast.error("Cheque number is required");
-          return;
-        }
-        if (!formData.chequeDate) {
-          toast.error("Cheque date is required");
-          return;
-        }
-      }
-
-      if (formData.paymentMode === "upi" && !formData.upiId) {
-        toast.error("UPI ID is required");
-        return;
-      }
 
       const payload = {
         ...formData,
@@ -512,7 +511,7 @@ const Payments = () => {
             <FaFileExport /> Export CSV
           </button>
 
-          <button className="add-payment" onClick={() => handleOpenModal()}>
+          <button className="add-payment" onClick={() => handleOpenModal()} disabled={isSubmitting}>
             <FaPlus /> Add Payment
           </button>
         </div>
@@ -851,7 +850,11 @@ const Payments = () => {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Status</label>
-                      <select name="status" value={formData.status} onChange={handleChange}>
+                      <select
+                        name="status"
+                        value={formData.status}
+                        onChange={handleChange}
+                      >
                         <option value="">All Status</option>
                         {statusOptions.map((status) => (
                           <option key={status.value} value={status.value}>

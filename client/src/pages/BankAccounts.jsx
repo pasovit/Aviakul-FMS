@@ -16,8 +16,6 @@ import "./BankAccounts.css";
 
 import RequiredStar from "../components/RequiredStar";
 
-
-
 const BankAccounts = () => {
   const [accounts, setAccounts] = useState([]);
   const [entities, setEntities] = useState([]);
@@ -27,6 +25,8 @@ const BankAccounts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterEntity, setFilterEntity] = useState("");
   const [filterType, setFilterType] = useState("");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     entity: "",
@@ -100,8 +100,10 @@ const BankAccounts = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     try {
+      setIsSubmitting(true);
       if (
         !formData.entity ||
         !formData.accountName ||
@@ -135,6 +137,8 @@ const BankAccounts = () => {
       fetchAccounts();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save account");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -199,7 +203,7 @@ const BankAccounts = () => {
           <h1>Bank Accounts</h1>
           <p>Manage bank accounts and cash balances</p>
         </div>
-        <button className="add-account" onClick={() => setShowModal(true)}>
+        <button className="add-account" onClick={() => setShowModal(true)} disabled={isSubmitting}>
           <FaPlus /> Add Account
         </button>
       </div>
@@ -330,6 +334,7 @@ const BankAccounts = () => {
         <div
           className="modal-overlay"
           onClick={() => {
+            if (isSubmitting) return;
             setShowModal(false);
             resetForm();
           }}
@@ -351,7 +356,9 @@ const BankAccounts = () => {
             <form onSubmit={handleSubmit} className="account-form">
               <div className="form-row">
                 <div className="form-group">
-                  <label>Entity <RequiredStar /></label>
+                  <label>
+                    Entity <RequiredStar />
+                  </label>
                   <select
                     name="entity"
                     value={formData.entity}
@@ -368,7 +375,9 @@ const BankAccounts = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Account Type <RequiredStar /></label>
+                  <label>
+                    Account Type <RequiredStar />
+                  </label>
                   <select
                     name="accountType"
                     value={formData.accountType}
@@ -385,7 +394,9 @@ const BankAccounts = () => {
               </div>
 
               <div className="form-group">
-                <label>Account Name <RequiredStar /></label>
+                <label>
+                  Account Name <RequiredStar />
+                </label>
                 <input
                   type="text"
                   name="accountName"
@@ -400,7 +411,9 @@ const BankAccounts = () => {
                 <>
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Account Number <RequiredStar /></label>
+                      <label>
+                        Account Number <RequiredStar />
+                      </label>
                       <input
                         type="text"
                         name="accountNumber"
@@ -412,7 +425,9 @@ const BankAccounts = () => {
                     </div>
 
                     <div className="form-group">
-                      <label>IFSC Code <RequiredStar /></label>
+                      <label>
+                        IFSC Code <RequiredStar />
+                      </label>
                       <input
                         type="text"
                         name="ifscCode"
@@ -427,7 +442,9 @@ const BankAccounts = () => {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Bank Name <RequiredStar /></label>
+                      <label>
+                        Bank Name <RequiredStar />
+                      </label>
                       <input
                         type="text"
                         name="bankName"
@@ -468,7 +485,9 @@ const BankAccounts = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Opening Balance Date <RequiredStar /></label>
+                  <label>
+                    Opening Balance Date <RequiredStar />
+                  </label>
                   <input
                     type="date"
                     name="openingBalanceDate"
@@ -480,7 +499,9 @@ const BankAccounts = () => {
               </div>
 
               <div className="form-group">
-                <label>Opening Balance <RequiredStar /></label>
+                <label>
+                  Opening Balance <RequiredStar />
+                </label>
                 <input
                   type="number"
                   name="openingBalance"
@@ -513,8 +534,16 @@ const BankAccounts = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="bank-account-create">
-                  {editingAccount ? "Update Account" : "Create Account"}
+                <button
+                  type="submit"
+                  className="bank-account-create"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Processing..."
+                    : editingAccount
+                      ? "Update Account"
+                      : "Create Account"}
                 </button>
               </div>
             </form>
