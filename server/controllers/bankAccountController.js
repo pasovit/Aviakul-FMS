@@ -155,6 +155,7 @@ exports.createBankAccount = async (req, res, next) => {
       const existingAccount = await BankAccount.findOne({
         accountNumber: req.body.accountNumber,
         ifscCode: req.body.ifscCode,
+        isActive: true,
       });
 
       if (existingAccount) {

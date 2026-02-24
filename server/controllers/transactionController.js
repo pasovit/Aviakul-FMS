@@ -255,13 +255,13 @@ exports.createTransaction = async (req, res, next) => {
     if (status === "paid" || status === "reconciled") {
       const change =
         type === "income"
-          ? totalAmount
+          ? transaction.totalAmount
           : type === "expense"
-            ? -totalAmount
+            ? -transaction.totalAmount
             : type === "loan"
-              ? totalAmount
+              ? transaction.totalAmount
               : type === "refund"
-                ? totalAmount
+                ? transaction.totalAmount
                 : 0;
 
       await bankAccountDoc.updateBalance(change);
@@ -313,8 +313,10 @@ exports.updateTransaction = async (req, res, next) => {
       });
     }
 
-    const newStatus = req.body.status || oldStatus;
-    const newAmount = req.body.totalAmount || oldAmount;
+    const newStatus =
+      req.body.status !== undefined ? req.body.status : oldStatus;
+    const newAmount =
+      req.body.totalAmount !== undefined ? req.body.totalAmount : oldAmount;
     const newType = req.body.type || oldType;
 
     // ===== REVERSE OLD BALANCE =====

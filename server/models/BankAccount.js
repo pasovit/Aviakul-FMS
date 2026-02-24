@@ -109,13 +109,19 @@ const bankAccountSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Compound indexes for efficient queries
 bankAccountSchema.index({ entity: 1, isActive: 1 });
 bankAccountSchema.index({ entity: 1, accountType: 1 });
-bankAccountSchema.index({ accountNumber: 1, ifscCode: 1 });
+bankAccountSchema.index(
+  { accountNumber: 1, ifscCode: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isActive: true },
+  },
+);
 
 // Virtual for identifying cash accounts
 bankAccountSchema.virtual("isCashAccount").get(function () {
@@ -132,7 +138,10 @@ bankAccountSchema.virtual("balanceStatus").get(function () {
 
 // Instance method to update balance
 bankAccountSchema.methods.updateBalance = function (amount) {
-  this.currentBalance += amount;
+  const roundToTwo = (val) => Math.round(val * 100) / 100;
+
+  this.currentBalance = roundToTwo(this.currentBalance + amount);
+
   return this.save();
 };
 
