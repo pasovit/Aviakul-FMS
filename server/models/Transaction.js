@@ -129,7 +129,7 @@ const transactionSchema = new mongoose.Schema(
     totalAmount: {
       type: Number,
       required: [true, "Total amount is required"],
-      min: [1, "Total amount must be greater than 0"],
+      min: [0.01, "Total amount must be greater than 0"],
     },
     paymentMethod: {
       type: String,
@@ -244,22 +244,21 @@ transactionSchema.virtual("amountWithGST").get(function () {
 
 // Pre-save middleware to calculate total amount
 transactionSchema.pre("validate", function (next) {
-  // Calculate total GST
-  this.gstDetails.totalGST =
-    this.gstDetails.cgst + this.gstDetails.sgst + this.gstDetails.igst;
+  const roundToTwo = (val) => Math.round(val * 100) / 100;
 
-  // Calculate total amount based on transaction type
+  this.gstDetails.totalGST = roundToTwo(
+    this.gstDetails.cgst + this.gstDetails.sgst + this.gstDetails.igst,
+  );
+
   if (this.type === "income") {
-    this.totalAmount =
-      this.amount + this.gstDetails.totalGST - this.tdsDetails.amount;
+    this.totalAmount = roundToTwo(
+      this.amount + this.gstDetails.totalGST - this.tdsDetails.amount,
+    );
   } else if (this.type === "expense") {
-    this.totalAmount = this.amount + this.gstDetails.totalGST;
-  } else if (this.type === "loan") {
-    this.totalAmount = this.amount;
-  } else if (this.type === "refund") {
-    this.totalAmount = this.amount;
+    this.totalAmount = roundToTwo(this.amount + this.gstDetails.totalGST);
+  } else {
+    this.totalAmount = roundToTwo(this.amount);
   }
-
   next();
 });
 

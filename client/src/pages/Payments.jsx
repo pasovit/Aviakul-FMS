@@ -508,11 +508,15 @@ const Payments = () => {
             onClick={handleExport}
             disabled={isSubmitting}
           >
-            <FaFileExport /> Export CSV
+            <FaFileExport size={12} /> Export CSV
           </button>
 
-          <button className="add-payment" onClick={() => handleOpenModal()} disabled={isSubmitting}>
-            <FaPlus /> Add Payment
+          <button
+            className="add-payment"
+            onClick={() => handleOpenModal()}
+            disabled={isSubmitting}
+          >
+            <FaPlus size={12} /> Add Payment
           </button>
         </div>
       </div>
@@ -823,6 +827,7 @@ const Payments = () => {
                       onChange={handleChange}
                       step="0.01"
                       min="0.01"
+                      onWheel={(e) => e.target.blur()}
                       required
                     />
                   </div>
@@ -1101,6 +1106,7 @@ const Payments = () => {
                                   step="0.01"
                                   min="0"
                                   max={invoice.outstandingAmount}
+                                  onWheel={(e) => e.target.blur()}
                                   style={{ width: "150px" }}
                                 />
                               )}

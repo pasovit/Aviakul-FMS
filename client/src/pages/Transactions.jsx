@@ -269,7 +269,7 @@ const Transactions = () => {
 
       setIsSubmitting(true);
 
-      const amount = Number(formData.amount) || 0;
+      const amount = parseFloat(formData.amount) || 0;
       const cgst = Number(formData.cgst) || 0;
       const sgst = Number(formData.sgst) || 0;
       const igst = Number(formData.igst) || 0;
@@ -280,9 +280,11 @@ const Transactions = () => {
         return;
       }
 
-      const totalAmount = amount + cgst + sgst + igst - tds;
+      const roundToTwo = (val) => Math.round(val * 100) / 100;
 
-      if (totalAmount < 1) {
+      const totalAmount = roundToTwo(amount + cgst + sgst + igst - tds);
+
+      if (totalAmount < 0.01) {
         toast.error("Total amount must be greater than 0");
         return;
       }
@@ -537,10 +539,10 @@ const Transactions = () => {
               setShowFilters(!showFilters);
             }}
           >
-            <FaFilter /> Filters
+            <FaFilter size={12} /> Filters
           </button>
           <label className="transaction-import">
-            <FaUpload /> Import CSV
+            <FaUpload size={12} /> Import CSV
             <input
               type="file"
               accept=".csv"
@@ -550,7 +552,7 @@ const Transactions = () => {
           </label>
 
           <button className="transaction-export" onClick={handleExportCSV}>
-            <FaFileExcel /> Export CSV
+            <FaFileExcel size={12} /> Export CSV
           </button>
 
           <button
@@ -558,7 +560,7 @@ const Transactions = () => {
             onClick={() => setShowModal(true)}
             disabled={isSubmitting}
           >
-            <FaPlus /> Add Transaction
+            <FaPlus size={12} /> Add Transaction
           </button>
         </div>
       </div>
@@ -607,6 +609,7 @@ const Transactions = () => {
               <option value="paid">Paid</option>
               <option value="cancelled">Cancelled</option>
             </select>
+
             <input
               type="date"
               name="startDate"
@@ -614,6 +617,7 @@ const Transactions = () => {
               value={filters.startDate}
               onChange={handleFilterChange}
             />
+
             <input
               type="date"
               name="endDate"
@@ -943,6 +947,7 @@ const Transactions = () => {
                     onChange={handleInputChange}
                     step="0.01"
                     required
+                    onWheel={(e) => e.target.blur()}
                   />
                 </div>
 
@@ -1002,7 +1007,7 @@ const Transactions = () => {
                 </button>
                 <button
                   type="submit"
-                  className="transaction-create"
+                  className="btn transaction-create"
                   disabled={isSubmitting}
                 >
                   {isSubmitting

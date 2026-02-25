@@ -289,15 +289,42 @@ const Vendors = () => {
       return toast.error("Invalid IFSC format");
     }
 
+    const phoneRegex = /^\+[1-9]\d{9,14}$/;
+
+    if (
+      formData.phone &&
+      formData.phone.length > 4 &&
+      !phoneRegex.test(formData.phone)
+    ) {
+      return toast.error("Invalid phone number format");
+    }
+
+    if (
+      formData.alternatePhone &&
+      formData.alternatePhone.length > 4 &&
+      !phoneRegex.test(formData.alternatePhone)
+    ) {
+      return toast.error("Invalid alternate phone number format");
+    }
+
     try {
       setIsSubmitting(true);
 
       const cleanData = { ...formData };
 
-      if (!cleanData.phone) delete cleanData.phone;
-      if (!cleanData.alternatePhone) delete cleanData.alternatePhone;
       if (!cleanData.pan) delete cleanData.pan;
       if (!cleanData.gstin) delete cleanData.gstin;
+
+      const phoneDigits = formData.phone?.replace(/\D/g, "") || "";
+      const altPhoneDigits = formData.alternatePhone?.replace(/\D/g, "") || "";
+
+      if (!phoneDigits || phoneDigits.length < 10) {
+        cleanData.phone = null;
+      }
+
+      if (!altPhoneDigits || altPhoneDigits.length < 10) {
+        cleanData.alternatePhone = null;
+      }
 
       if (editingVendor) {
         await vendorAPI.update(editingVendor._id, cleanData);
@@ -353,8 +380,12 @@ const Vendors = () => {
     <div className="vendors-page">
       <div className="page-header">
         <h1>Vendors</h1>
-        <button className="add-vendor" onClick={() => handleOpenModal()} disabled={isSubmitting}>
-          <FaPlus /> Add Vendor
+        <button
+          className="add-vendor"
+          onClick={() => handleOpenModal()}
+          disabled={isSubmitting}
+        >
+          <FaPlus size={12} /> Add Vendor
         </button>
       </div>
 
@@ -593,9 +624,7 @@ const Vendors = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>
-                      Phone <RequiredStar />
-                    </label>
+                    <label>Phone</label>
                     <PhoneInput
                       defaultCountry="in"
                       value={formData.phone}
@@ -610,14 +639,11 @@ const Vendors = () => {
                           },
                         })
                       }
-                      required
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>
-                      Alternate Phone <RequiredStar />
-                    </label>
+                    <label>Alternate Phone</label>
                     <PhoneInput
                       defaultCountry="in"
                       value={formData.alternatePhone}
@@ -629,7 +655,6 @@ const Vendors = () => {
                           },
                         })
                       }
-                      required
                     />
                   </div>
                 </div>
@@ -701,6 +726,7 @@ const Vendors = () => {
                       min="0"
                       max="30"
                       step="0.1"
+                      onWheel={(e) => e.target.blur()}
                     />
                   </div>
                 </div>
@@ -821,6 +847,7 @@ const Vendors = () => {
                         onChange={handleChange}
                         min="0"
                         max="365"
+                        onWheel={(e) => e.target.blur()}
                         required
                       />
                     </div>
@@ -835,6 +862,7 @@ const Vendors = () => {
                       onChange={handleChange}
                       min="0"
                       step="1000"
+                      onWheel={(e) => e.target.blur()}
                     />
                   </div>
                 </div>
@@ -923,7 +951,7 @@ const Vendors = () => {
                 </button>
                 <button
                   type="submit"
-                  className="vendor-create"
+                  className="btn vendor-create"
                   disabled={isSubmitting}
                 >
                   {isSubmitting
