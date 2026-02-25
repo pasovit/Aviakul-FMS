@@ -203,7 +203,11 @@ const BankAccounts = () => {
           <h1>Bank Accounts</h1>
           <p>Manage bank accounts and cash balances</p>
         </div>
-        <button className="add-account" onClick={() => setShowModal(true)} disabled={isSubmitting}>
+        <button
+          className="add-account"
+          onClick={() => setShowModal(true)}
+          disabled={isSubmitting}
+        >
           <FaPlus size={12} /> Add Account
         </button>
       </div>
@@ -509,6 +513,7 @@ const BankAccounts = () => {
                   onChange={handleInputChange}
                   step="0.01"
                   required
+                  onWheel={(e) => e.target.blur()}
                 />
               </div>
 

@@ -947,6 +947,7 @@ const Transactions = () => {
                     onChange={handleInputChange}
                     step="0.01"
                     required
+                    onWheel={(e) => e.target.blur()}
                   />
                 </div>
 

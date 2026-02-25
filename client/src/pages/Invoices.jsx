@@ -424,10 +424,14 @@ const Invoices = () => {
             onClick={handleExport}
             disabled={isSubmitting}
           >
-            <FaFileExport size={12}/> Export CSV
+            <FaFileExport size={12} /> Export CSV
           </button>
 
-          <button className="add-invoice" onClick={() => handleOpenModal()} disabled={isSubmitting}>
+          <button
+            className="add-invoice"
+            onClick={() => handleOpenModal()}
+            disabled={isSubmitting}
+          >
             <FaPlus size={12} /> Create Invoice
           </button>
         </div>
@@ -804,6 +808,7 @@ const Invoices = () => {
                                 }
                                 min="0.01"
                                 step="0.01"
+                                onWheel={(e) => e.target.blur()}
                                 required
                               />
                             </td>
@@ -834,6 +839,7 @@ const Invoices = () => {
                                 }
                                 min="0"
                                 step="0.01"
+                                onWheel={(e) => e.target.blur()}
                                 required
                               />
                             </td>
@@ -851,6 +857,7 @@ const Invoices = () => {
                                 min="0"
                                 max="100"
                                 step="0.01"
+                                onWheel={(e) => e.target.blur()}
                               />
                             </td>
                             <td className="amount-cell">

@@ -385,7 +385,7 @@ const Vendors = () => {
           onClick={() => handleOpenModal()}
           disabled={isSubmitting}
         >
-          <FaPlus size={12}/> Add Vendor
+          <FaPlus size={12} /> Add Vendor
         </button>
       </div>
 
@@ -726,6 +726,7 @@ const Vendors = () => {
                       min="0"
                       max="30"
                       step="0.1"
+                      onWheel={(e) => e.target.blur()}
                     />
                   </div>
                 </div>
@@ -846,6 +847,7 @@ const Vendors = () => {
                         onChange={handleChange}
                         min="0"
                         max="365"
+                        onWheel={(e) => e.target.blur()}
                         required
                       />
                     </div>
@@ -860,6 +862,7 @@ const Vendors = () => {
                       onChange={handleChange}
                       min="0"
                       step="1000"
+                      onWheel={(e) => e.target.blur()}
                     />
                   </div>
                 </div>

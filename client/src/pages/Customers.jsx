@@ -267,11 +267,10 @@ const Customers = () => {
       if (!cleanData.pan) delete cleanData.pan;
       if (!cleanData.gstin) delete cleanData.gstin;
       if (!cleanData.notes) delete cleanData.notes;
-     
+
       const phoneDigits = formData.phone?.replace(/\D/g, "") || "";
       const altPhoneDigits = formData.alternatePhone?.replace(/\D/g, "") || "";
 
-     
       if (!phoneDigits || phoneDigits.length < 10) {
         cleanData.phone = null;
       }
@@ -331,7 +330,7 @@ const Customers = () => {
           onClick={() => handleOpenModal()}
           disabled={isSubmitting}
         >
-          <FaPlus size={12}/> Add Customer
+          <FaPlus size={12} /> Add Customer
         </button>
       </div>
 
@@ -693,6 +692,7 @@ const Customers = () => {
                         min="0"
                         max="30"
                         step="0.1"
+                        onWheel={(e) => e.target.blur()}
                       />
                     </div>
                   </div>
@@ -814,6 +814,7 @@ const Customers = () => {
                         onChange={handleChange}
                         min="0"
                         max="365"
+                        onWheel={(e) => e.target.blur()}
                         required
                       />
                     </div>
