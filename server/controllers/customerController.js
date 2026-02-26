@@ -79,6 +79,13 @@ exports.createCustomer = async (req, res) => {
       });
     }
 
+    // Debug logs for phone number validation
+    console.log("=== CREATE CUSTOMER REQUEST ===");
+    console.log("Phone:", req.body.phone, "| Type:", typeof req.body.phone, "| Length:", req.body.phone?.length);
+    console.log("Alternate Phone:", req.body.alternatePhone, "| Type:", typeof req.body.alternatePhone, "| Length:", req.body.alternatePhone?.length);
+    console.log("Full request body:", JSON.stringify(req.body, null, 2));
+    console.log("================================");
+
     const customer = await Customer.create({
       ...req.body,
       createdBy: userId,
