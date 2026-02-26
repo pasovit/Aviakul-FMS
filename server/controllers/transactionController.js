@@ -25,7 +25,7 @@ exports.getTransactions = async (req, res, next) => {
       endDate,
       search,
       page = 1,
-      limit = 50,
+      limit = 20,
       sortBy = "transactionDate",
       sortOrder = "desc",
     } = req.query;
@@ -572,6 +572,112 @@ exports.bulkUpdateStatus = async (req, res, next) => {
       success: true,
       message: `Updated ${updatedTransactions.length} transactions`,
       updated: updatedTransactions.length,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Bulk delete transactions
+// @route   DELETE /api/transactions/bulk-delete
+// @access  Private (Admin+)
+exports.bulkDeleteTransactions = async (req, res, next) => {
+  try {
+    const { transactionIds } = req.body;
+
+    if (
+      !transactionIds ||
+      !Array.isArray(transactionIds) ||
+      transactionIds.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction IDs array is required",
+      });
+    }
+
+    const deleted = [];
+    const errors = [];
+
+    for (const id of transactionIds) {
+      try {
+        const transaction = await Transaction.findById(id)
+          .populate("bankAccount")
+          .populate("transferToAccount");
+
+        if (!transaction) {
+          errors.push({ id, error: "Transaction not found" });
+          continue;
+        }
+
+        // ===== ENTITY ACCESS CHECK =====
+        if (
+          (req.user.role === "employee" ||
+            req.user.role === "observer") &&
+          !req.user.assignedEntities.includes(
+            transaction.entity.toString(),
+          )
+        ) {
+          errors.push({ id, error: "Access denied to this entity" });
+          continue;
+        }
+
+        // ===== REVERSE BALANCE =====
+        if (
+          transaction.status === "paid" ||
+          transaction.status === "reconciled"
+        ) {
+          const reverseAmount =
+            transaction.type === "income"
+              ? -transaction.totalAmount
+              : transaction.type === "expense"
+                ? transaction.totalAmount
+                : transaction.type === "loan"
+                  ? -transaction.totalAmount
+                  : transaction.type === "refund"
+                    ? -transaction.totalAmount
+                    : 0;
+
+          await transaction.bankAccount.updateBalance(reverseAmount);
+
+          // Handle transfer case
+          if (
+            transaction.type === "transfer" &&
+            transaction.transferToAccount
+          ) {
+            await transaction.transferToAccount.updateBalance(
+              -transaction.totalAmount,
+            );
+          }
+        }
+
+        const beforeDelete = transaction.toObject();
+
+        await transaction.deleteOne();
+
+        // ===== AUDIT LOG =====
+        await logAction({
+          user: req.user._id,
+          action: "bulk_delete",
+          resource: "Transaction",
+          resourceId: transaction._id,
+          entity: transaction.entity,
+          changes: { before: beforeDelete },
+          req,
+        });
+
+        deleted.push(id);
+      } catch (err) {
+        errors.push({ id, error: err.message });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Deleted ${deleted.length} transactions`,
+      deletedCount: deleted.length,
+      deletedIds: deleted,
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {

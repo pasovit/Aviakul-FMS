@@ -8,6 +8,7 @@ const {
   updateTransaction,
   deleteTransaction,
   bulkUpdateStatus,
+  bulkDeleteTransactions,
   exportToExcel,
   importPreview,
   importCommit,
@@ -61,6 +62,21 @@ router.get("/export", auditMiddleware, exportToExcel);
 router.get("/:id", auditMiddleware, getTransaction);
 router.get("/export/csv",auditMiddleware,exportCSV);
 
+// Bulk operations
+router.post(
+  "/bulk-update",
+  authorize("admin", "manager", "super_admin"),
+  auditMiddleware,
+  bulkUpdateStatus
+);
+
+// Bulk delete transactions
+router.delete(
+  "/bulk-delete",
+  authorize("admin", "super_admin"), 
+  bulkDeleteTransactions
+);
+
 // Admin+ routes
 router.post(
   "/",
@@ -81,13 +97,7 @@ router.delete(
   deleteTransaction
 );
 
-// Bulk operations
-router.post(
-  "/bulk-update",
-  authorize("admin", "manager", "super_admin"),
-  auditMiddleware,
-  bulkUpdateStatus
-);
+
 
 // Import/Export
 router.post(

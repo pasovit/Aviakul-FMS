@@ -67,7 +67,6 @@ export const subCategoryAPI = {
   delete: (id) => api.delete(`/subcategories/${id}`),
 };
 
-
 // Auth API calls
 export const authAPI = {
   login: (credentials) => api.post("/auth/login", credentials),
@@ -114,6 +113,10 @@ export const transactionAPI = {
   update: (id, data) => api.put(`/transactions/${id}`, data),
   delete: (id) => api.delete(`/transactions/${id}`),
   bulkUpdateStatus: (data) => api.post("/transactions/bulk-update", data),
+  bulkDelete: (data) =>
+    api.delete("/transactions/bulk-delete", {
+      data,
+    }),
   exportToExcel: (params) =>
     api.get("/transactions/export", {
       params,
@@ -171,10 +174,12 @@ export const invoiceAPI = {
   create: (data) => api.post("/invoices", data),
   update: (id, data) => api.put(`/invoices/${id}`, data),
   delete: (id) => api.delete(`/invoices/${id}`),
+  bulkDelete: (invoiceIds) => api.post("/invoices/bulk-delete", { invoiceIds }),
+  bulkCancel: (invoiceIds) => api.put("/invoices/bulk-cancel", { invoiceIds }),
   getAgingReport: (params) => api.get("/invoices/aging-report", { params }),
   getSummary: (params) => api.get("/invoices/summary", { params }),
   exportCSV: (params) =>
-    api.get("invoices/export/csv", {
+    api.get("/invoices/export/csv", {
       params,
       responseType: "blob",
     }),

@@ -367,6 +367,41 @@ const Transactions = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (isSubmitting) return;
+
+    if (selectedIds.length === 0) {
+      toast.warning("Please select transactions first");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      await deleteWithConfirm({
+        title: "Are you sure?",
+        text: `You are about to delete ${selectedIds.length} transactions permanently!`,
+        confirmText: "Delete All",
+        apiCall: () =>
+          transactionAPI.bulkDelete({
+            transactionIds: selectedIds,
+          }),
+        onSuccess: () => {
+          setSelectedIds([]);
+          fetchTransactions();
+        },
+      });
+
+      toast.success(`${selectedIds.length} transactions deleted`);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to delete transactions",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // const handleExport = async () => {
   //   try {
   //     const response = await transactionAPI.exportToExcel(filters);
@@ -645,6 +680,13 @@ const Transactions = () => {
           >
             Cancel
           </button>
+          <button
+            className="btn btn-sm danger"
+            disabled={isSubmitting}
+            onClick={handleBulkDelete}
+          >
+            Delete Selected
+          </button>
           <button className="btn btn-sm" onClick={() => setSelectedIds([])}>
             Clear
           </button>
@@ -761,11 +803,72 @@ const Transactions = () => {
               setFilters((prev) => ({ ...prev, page: prev.page - 1 }))
             }
           >
-            Previous
+            Prev
           </button>
-          <span>
-            Page {pagination.currentPage} of {pagination.totalPages}
-          </span>
+
+          {(() => {
+            const pages = [];
+            const total = pagination.totalPages;
+            const current = pagination.currentPage;
+
+            let start = Math.max(1, current - 2);
+            let end = Math.min(total, current + 2);
+
+            if (current <= 3) {
+              end = Math.min(5, total);
+            }
+
+            if (current >= total - 2) {
+              start = Math.max(total - 4, 1);
+            }
+
+            if (start > 1) {
+              pages.push(
+                <button
+                  key={1}
+                  onClick={() => setFilters((prev) => ({ ...prev, page: 1 }))}
+                >
+                  1
+                </button>,
+              );
+
+              if (start > 2) {
+                pages.push(<span key="start-dots">...</span>);
+              }
+            }
+
+            for (let i = start; i <= end; i++) {
+              pages.push(
+                <button
+                  key={i}
+                  className={current === i ? "active" : ""}
+                  onClick={() => setFilters((prev) => ({ ...prev, page: i }))}
+                >
+                  {i}
+                </button>,
+              );
+            }
+
+            if (end < total) {
+              if (end < total - 1) {
+                pages.push(<span key="end-dots">...</span>);
+              }
+
+              pages.push(
+                <button
+                  key={total}
+                  onClick={() =>
+                    setFilters((prev) => ({ ...prev, page: total }))
+                  }
+                >
+                  {total}
+                </button>,
+              );
+            }
+
+            return pages;
+          })()}
+
           <button
             disabled={!pagination.hasNext}
             onClick={() =>
@@ -774,6 +877,21 @@ const Transactions = () => {
           >
             Next
           </button>
+
+          <input
+            type="text"
+            placeholder="Go to"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const value = Number(e.target.value);
+                if (value >= 1 && value <= pagination.totalPages) {
+                  setFilters((prev) => ({ ...prev, page: value }));
+                  e.target.value = "";
+                }
+              }
+            }}
+            style={{ width: "60px", marginLeft: "10px" }}
+          />
         </div>
       )}
 
@@ -978,7 +1096,9 @@ const Transactions = () => {
                     required
                   >
                     <option value="pending">Pending</option>
-                    <option value="paid">Paid</option>
+                    {formData.type !== "income" && (
+                      <option value="paid">Paid</option>
+                    )}
                     <option value="received">Received</option>
                   </select>
                 </div>

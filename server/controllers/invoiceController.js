@@ -16,16 +16,14 @@ exports.getInvoices = async (req, res) => {
       agingBucket,
       search,
       page = 1,
-      limit = 50,
+      limit = 20,
     } = req.query;
-    const userId = req.user._id;
+
     const userRole = req.user.role;
     const userEntity = req.user.entity;
 
-    // Build query
     let query = {};
 
-    // Apply entity-scoped access
     if (userRole === "employee" || userRole === "observer") {
       query.entity = userEntity;
     } else if (req.query.entity) {
@@ -36,11 +34,17 @@ exports.getInvoices = async (req, res) => {
     if (status) query.status = status;
     if (paymentStatus) query.paymentStatus = paymentStatus;
     if (agingBucket) query.agingBucket = agingBucket;
-    if (search) {
-      query.$or = [{ invoiceNumber: { $regex: search, $options: "i" } }];
+
+    if (search && search.trim() !== "") {
+      query.$or = [
+        { invoiceNumber: { $regex: search.trim(), $options: "i" } },
+      ];
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
     const total = await Invoice.countDocuments(query);
 
     const invoices = await Invoice.find(query)
@@ -50,18 +54,25 @@ exports.getInvoices = async (req, res) => {
       .populate("createdBy", "name email")
       .sort({ invoiceDate: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limitNum);
 
-    res.json({
+    const totalPages = Math.ceil(total / limitNum);
+
+    const pagination = {
+      currentPage: pageNum,
+      totalPages,
+      totalRecords: total,
+      hasNext: pageNum < totalPages,
+      hasPrev: pageNum > 1,
+    };
+
+    res.status(200).json({
       success: true,
       count: invoices.length,
-      total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / parseInt(limit)),
+      pagination,
       data: invoices,
     });
   } catch (error) {
-    console.error("Error fetching invoices:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch invoices",
@@ -69,7 +80,6 @@ exports.getInvoices = async (req, res) => {
     });
   }
 };
-
 // Get single invoice by ID
 exports.getInvoice = async (req, res) => {
   try {
@@ -434,6 +444,196 @@ exports.deleteInvoice = async (req, res) => {
   }
 };
 
+// @desc    Bulk cancel invoices
+// @route   DELETE /api/invoices/bulk-delete
+// @access  Private (Admin + Super Admin)
+exports.bulkCancelInvoices = async (req, res) => {
+  try {
+    const { invoiceIds } = req.body;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    if (userRole !== "admin" && userRole !== "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to delete invoices",
+      });
+    }
+
+    if (!invoiceIds || !Array.isArray(invoiceIds) || invoiceIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice IDs array is required",
+      });
+    }
+
+    const cancelled = [];
+    const errors = [];
+
+    for (const id of invoiceIds) {
+      try {
+        const invoice = await Invoice.findById(id);
+
+        if (!invoice) {
+          errors.push({ id, error: "Invoice not found" });
+          continue;
+        }
+
+        // Prevent cancelling paid invoices
+        if (invoice.amountPaid > 0) {
+          errors.push({
+            id,
+            error: "Cannot cancel invoice with payments",
+          });
+          continue;
+        }
+
+        // Already cancelled
+        if (invoice.status === "cancelled") {
+          errors.push({
+            id,
+            error: "Invoice already cancelled",
+          });
+          continue;
+        }
+
+        const oldData = invoice.toObject();
+
+        // Reverse outstanding
+        if (invoice.invoiceType === "sales" && invoice.customer) {
+          await Customer.updateOutstanding(
+            invoice.customer,
+            -invoice.amountDue,
+          );
+        } else if (invoice.invoiceType === "purchase" && invoice.vendor) {
+          await Vendor.updateOutstanding(invoice.vendor, -invoice.amountDue);
+        }
+
+        invoice.status = "cancelled";
+        invoice.updatedBy = userId;
+        await invoice.save();
+
+        await logAction(
+          userId,
+          "BULK_CANCEL",
+          "Invoice",
+          invoice._id,
+          oldData,
+          { status: "cancelled" },
+          req,
+        );
+
+        cancelled.push(id);
+      } catch (err) {
+        errors.push({ id, error: err.message });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Cancelled ${cancelled.length} invoices`,
+      cancelledCount: cancelled.length,
+      cancelledIds: cancelled,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error("Bulk delete error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to bulk cancel invoices",
+      error: error.message,
+    });
+  }
+};
+exports.bulkDeleteInvoices = async (req, res) => {
+  try {
+    const { invoiceIds } = req.body;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    if (userRole !== "admin" && userRole !== "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to delete invoices",
+      });
+    }
+
+    if (!invoiceIds || !Array.isArray(invoiceIds) || invoiceIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice IDs array is required",
+      });
+    }
+
+    const deleted = [];
+    const errors = [];
+
+    for (const id of invoiceIds) {
+      try {
+        const invoice = await Invoice.findById(id);
+
+        if (!invoice) {
+          errors.push({ id, error: "Invoice not found" });
+          continue;
+        }
+
+        // ❗ Prevent deleting paid invoices
+        if (invoice.amountPaid > 0) {
+          errors.push({
+            id,
+            error: "Cannot delete invoice with payments",
+          });
+          continue;
+        }
+
+        const oldData = invoice.toObject();
+
+        // Reverse outstanding before delete
+        if (invoice.status !== "cancelled") {
+          if (invoice.invoiceType === "sales" && invoice.customer) {
+            await Customer.updateOutstanding(
+              invoice.customer,
+              -invoice.amountDue,
+            );
+          } else if (invoice.invoiceType === "purchase" && invoice.vendor) {
+            await Vendor.updateOutstanding(invoice.vendor, -invoice.amountDue);
+          }
+        }
+
+        await invoice.deleteOne();
+
+        await logAction(
+          userId,
+          "BULK_DELETE_PERMANENT",
+          "Invoice",
+          id,
+          oldData,
+          null,
+          req,
+        );
+
+        deleted.push(id);
+      } catch (err) {
+        errors.push({ id, error: err.message });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Deleted ${deleted.length} invoices permanently`,
+      deletedCount: deleted.length,
+      deletedIds: deleted,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error("Bulk permanent delete error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to bulk delete invoices",
+      error: error.message,
+    });
+  }
+};
 // Get aging report
 exports.getAgingReport = async (req, res) => {
   try {
