@@ -23,12 +23,18 @@ const Invoices = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
 
+  const [pagination, setPagination] = useState({});
+
+  const [selectedIds, setSelectedIds] = useState([]);
+
   const [filters, setFilters] = useState({
     entity: "",
     invoiceType: "",
     status: "",
     agingBucket: "",
     search: "",
+    page: 1,
+    limit: 20,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -84,6 +90,7 @@ const Invoices = () => {
       setLoading(true);
       const response = await invoiceAPI.getAll(filters);
       setInvoices(response.data.data);
+      setPagination(response.data.pagination);
     } catch (error) {
       toast.error("Failed to fetch invoices");
       console.error(error);
@@ -391,6 +398,61 @@ const Invoices = () => {
     }
   };
 
+  const handleBulkCancel = async () => {
+    if (isSubmitting) return;
+
+    if (selectedIds.length === 0) {
+      toast.warning("Please select invoices first");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      await deleteWithConfirm({
+        title: "Are you sure?",
+        text: `You are about to cancel ${selectedIds.length} invoices!`,
+        confirmText: "Cancel Invoices",
+        apiCall: () => invoiceAPI.bulkCancel(selectedIds),
+        onSuccess: () => {
+          setSelectedIds([]);
+          fetchInvoices();
+        },
+      });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to cancel invoices");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  const handleBulkPermanentDelete = async () => {
+    if (isSubmitting) return;
+
+    if (selectedIds.length === 0) {
+      toast.warning("Please select invoices first");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      await deleteWithConfirm({
+        title: "Permanent Delete?",
+        text: `This will permanently delete ${selectedIds.length} invoices from database!`,
+        confirmText: "Delete Permanently",
+        apiCall: () => invoiceAPI.bulkDelete(selectedIds),
+        onSuccess: () => {
+          setSelectedIds([]);
+          fetchInvoices();
+        },
+      });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete invoices");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -513,6 +575,32 @@ const Invoices = () => {
         </form>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="bulk-actions">
+          <span>{selectedIds.length} selected</span>
+
+          <button
+            className="btn btn-sm warning"
+            disabled={isSubmitting}
+            onClick={handleBulkCancel}
+          >
+            Cancel Selected
+          </button>
+
+          <button
+            className="btn btn-sm danger"
+            disabled={isSubmitting}
+            onClick={handleBulkPermanentDelete}
+          >
+            Delete Permanently
+          </button>
+
+          <button className="btn btn-sm" onClick={() => setSelectedIds([])}>
+            Clear
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="loading">Loading invoices...</div>
       ) : (
@@ -520,6 +608,18 @@ const Invoices = () => {
           <table className="invoices-table">
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(invoices.map((t) => t._id));
+                      } else {
+                        setSelectedIds([]);
+                      }
+                    }}
+                  />
+                </th>
                 <th>Invoice #</th>
                 <th>Type</th>
                 <th>Party</th>
@@ -534,86 +634,211 @@ const Invoices = () => {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((invoice) => (
-                <tr key={invoice._id}>
-                  <td>
-                    <span className="invoice-number">
-                      <FaFileInvoice /> {invoice.invoiceNumber}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`type-badge ${invoice.invoiceType}`}>
-                      {invoice.invoiceType === "sales" ? "Sales" : "Purchase"}
-                    </span>
-                  </td>
-                  <td>
-                    {invoice.invoiceType === "sales"
-                      ? invoice.customer?.name
-                      : invoice.vendor?.name}
-                  </td>
-                  <td>{formatDate(invoice.invoiceDate)}</td>
-                  <td>{formatDate(invoice.dueDate)}</td>
-                  <td className="invoice-amount">
-                    {formatCurrency(invoice.totalAmount)}
-                  </td>
-                  <td className="invoice-amount paid">
-                    {formatCurrency(invoice.amountPaid)}
-                  </td>
-                  <td className="invoice-amount due">
-                    {formatCurrency(invoice.amountDue)}
-                  </td>
-                  <td>
-                    <span
-                      className="status-badge"
-                      style={{
-                        backgroundColor: getStatusColor(invoice.status),
-                      }}
-                    >
-                      {
-                        statusOptions.find((s) => s.value === invoice.status)
-                          ?.label
-                      }
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`aging-badge ${invoice.agingBucket}`}>
-                      {invoice.agingBucket === "current"
-                        ? "Current"
-                        : invoice.agingBucket}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="invoice-actions-cell">
-                      {invoice.status !== "paid" &&
-                      invoice.status !== "cancelled" ? (
-                        <>
-                          <button
-                            onClick={() => handleOpenModal(invoice)}
-                            className="btn-icon"
-                            disabled={isSubmitting}
-                            title="Edit"
-                          >
-                            <FaEdit />
-                          </button>
-
-                          <button
-                            title="Delete"
-                            onClick={() => handleDelete(invoice._id)}
-                            className="btn-icon danger"
-                            disabled={isSubmitting}
-                          >
-                            <FaTrash />
-                          </button>
-                        </>
-                      ) : (
-                        <span className="no-actions">—</span>
-                      )}
+              {invoices?.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="empty-cell">
+                    <div className="empty-state">
+                      <h3>No Invoices Found</h3>
+                      <p>Try adjusting filters or create a new invoice.</p>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                invoices.map((invoice) => (
+                  <tr key={invoice._id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(invoice._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds([...selectedIds, invoice._id]);
+                          } else {
+                            setSelectedIds(
+                              selectedIds.filter((id) => id !== invoice._id),
+                            );
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <span className="invoice-number">
+                        <FaFileInvoice /> {invoice.invoiceNumber}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`type-badge ${invoice.invoiceType}`}>
+                        {invoice.invoiceType === "sales" ? "Sales" : "Purchase"}
+                      </span>
+                    </td>
+                    <td>
+                      {invoice.invoiceType === "sales"
+                        ? invoice.customer?.name
+                        : invoice.vendor?.name}
+                    </td>
+                    <td>{formatDate(invoice.invoiceDate)}</td>
+                    <td>{formatDate(invoice.dueDate)}</td>
+                    <td className="invoice-amount">
+                      {formatCurrency(invoice.totalAmount)}
+                    </td>
+                    <td className="invoice-amount paid">
+                      {formatCurrency(invoice.amountPaid)}
+                    </td>
+                    <td className="invoice-amount due">
+                      {formatCurrency(invoice.amountDue)}
+                    </td>
+                    <td>
+                      <span
+                        className="status-badge"
+                        style={{
+                          backgroundColor: getStatusColor(invoice.status),
+                        }}
+                      >
+                        {
+                          statusOptions.find((s) => s.value === invoice.status)
+                            ?.label
+                        }
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`aging-badge ${invoice.agingBucket}`}>
+                        {invoice.agingBucket === "current"
+                          ? "Current"
+                          : invoice.agingBucket}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="invoice-actions-cell">
+                        {invoice.status !== "paid" &&
+                        invoice.status !== "cancelled" ? (
+                          <>
+                            <button
+                              onClick={() => handleOpenModal(invoice)}
+                              className="btn-icon"
+                              disabled={isSubmitting}
+                              title="Edit"
+                            >
+                              <FaEdit />
+                            </button>
+
+                            <button
+                              title="Delete"
+                              onClick={() => handleDelete(invoice._id)}
+                              className="btn-icon danger"
+                              disabled={isSubmitting}
+                            >
+                              <FaTrash />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="no-actions">—</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+      )}
+      {pagination.totalPages > 1 && (
+        <div className="pagination">
+          <button
+            disabled={!pagination.hasPrev}
+            onClick={() =>
+              setFilters((prev) => ({ ...prev, page: prev.page - 1 }))
+            }
+          >
+            Prev
+          </button>
+
+          {(() => {
+            const pages = [];
+            const total = pagination.totalPages;
+            const current = pagination.currentPage;
+
+            let start = Math.max(1, current - 2);
+            let end = Math.min(total, current + 2);
+
+            if (current <= 3) {
+              end = Math.min(5, total);
+            }
+
+            if (current >= total - 2) {
+              start = Math.max(total - 4, 1);
+            }
+
+            if (start > 1) {
+              pages.push(
+                <button
+                  key={1}
+                  onClick={() => setFilters((prev) => ({ ...prev, page: 1 }))}
+                >
+                  1
+                </button>,
+              );
+
+              if (start > 2) {
+                pages.push(<span key="start-dots">...</span>);
+              }
+            }
+
+            for (let i = start; i <= end; i++) {
+              pages.push(
+                <button
+                  key={i}
+                  className={current === i ? "active" : ""}
+                  onClick={() => setFilters((prev) => ({ ...prev, page: i }))}
+                >
+                  {i}
+                </button>,
+              );
+            }
+
+            if (end < total) {
+              if (end < total - 1) {
+                pages.push(<span key="end-dots">...</span>);
+              }
+
+              pages.push(
+                <button
+                  key={total}
+                  onClick={() =>
+                    setFilters((prev) => ({ ...prev, page: total }))
+                  }
+                >
+                  {total}
+                </button>,
+              );
+            }
+
+            return pages;
+          })()}
+
+          <button
+            disabled={!pagination.hasNext}
+            onClick={() =>
+              setFilters((prev) => ({ ...prev, page: prev.page + 1 }))
+            }
+          >
+            Next
+          </button>
+
+          <input
+            type="text"
+            placeholder="Go to"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const value = Number(e.target.value);
+                if (value >= 1 && value <= pagination.totalPages) {
+                  setFilters((prev) => ({ ...prev, page: value }));
+                  e.target.value = "";
+                }
+              }
+            }}
+            style={{ width: "60px", marginLeft: "10px" }}
+          />
         </div>
       )}
 

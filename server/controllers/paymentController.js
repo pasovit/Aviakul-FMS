@@ -17,16 +17,14 @@ exports.getPayments = async (req, res) => {
       isReconciled,
       search,
       page = 1,
-      limit = 50,
+      limit = 20,
     } = req.query;
-    const userId = req.user._id;
+
     const userRole = req.user.role;
     const userEntity = req.user.entity;
 
-    // Build query
     let query = {};
 
-    // Apply entity-scoped access
     if (userRole === "employee" || userRole === "observer") {
       query.entity = userEntity;
     } else if (req.query.entity) {
@@ -38,14 +36,18 @@ exports.getPayments = async (req, res) => {
     if (paymentMode) query.paymentMode = paymentMode;
     if (isReconciled !== undefined)
       query.isReconciled = isReconciled === "true";
-    if (search) {
+
+    if (search && search.trim() !== "") {
       query.$or = [
-        { paymentNumber: { $regex: search, $options: "i" } },
-        { referenceNumber: { $regex: search, $options: "i" } },
+        { paymentNumber: { $regex: search.trim(), $options: "i" } },
+        { referenceNumber: { $regex: search.trim(), $options: "i" } },
       ];
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
     const total = await Payment.countDocuments(query);
 
     const payments = await Payment.find(query)
@@ -56,18 +58,25 @@ exports.getPayments = async (req, res) => {
       .populate("createdBy", "name email")
       .sort({ paymentDate: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limitNum);
 
-    res.json({
+    const totalPages = Math.ceil(total / limitNum);
+
+    const pagination = {
+      currentPage: pageNum,
+      totalPages,
+      totalRecords: total,
+      hasNext: pageNum < totalPages,
+      hasPrev: pageNum > 1,
+    };
+
+    res.status(200).json({
       success: true,
       count: payments.length,
-      total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / parseInt(limit)),
+      pagination,
       data: payments,
     });
   } catch (error) {
-    console.error("Error fetching payments:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch payments",
@@ -376,7 +385,7 @@ exports.updatePayment = async (req, res) => {
       data: payment,
     });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(400).json({
       success: false,
       message: "Failed to update payment",

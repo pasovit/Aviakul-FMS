@@ -35,12 +35,16 @@ const Payments = () => {
   const [showModal, setShowModal] = useState(false);
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
+  const [pagination, setPagination] = useState({});
+
   const [filters, setFilters] = useState({
     entity: "",
     paymentType: "",
     status: "",
     paymentMode: "",
     search: "",
+    page: 1,
+    limit: 20,
   });
 
   const [formData, setFormData] = useState({
@@ -99,6 +103,7 @@ const Payments = () => {
       const response = await paymentAPI.getAll(filters);
       console.log(response.data.data);
       setPayments(response.data.data);
+      setPagination(response.data.pagination);
     } catch (error) {
       toast.error("Failed to fetch payments");
       console.error(error);
@@ -706,6 +711,106 @@ const Payments = () => {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {pagination.totalPages > 1 && (
+        <div className="pagination">
+          <button
+            disabled={!pagination.hasPrev}
+            onClick={() =>
+              setFilters((prev) => ({ ...prev, page: prev.page - 1 }))
+            }
+          >
+            Prev
+          </button>
+
+          {(() => {
+            const pages = [];
+            const total = pagination.totalPages;
+            const current = pagination.currentPage;
+
+            let start = Math.max(1, current - 2);
+            let end = Math.min(total, current + 2);
+
+            if (current <= 3) {
+              end = Math.min(5, total);
+            }
+
+            if (current >= total - 2) {
+              start = Math.max(total - 4, 1);
+            }
+
+            if (start > 1) {
+              pages.push(
+                <button
+                  key={1}
+                  onClick={() => setFilters((prev) => ({ ...prev, page: 1 }))}
+                >
+                  1
+                </button>,
+              );
+
+              if (start > 2) {
+                pages.push(<span key="start-dots">...</span>);
+              }
+            }
+
+            for (let i = start; i <= end; i++) {
+              pages.push(
+                <button
+                  key={i}
+                  className={current === i ? "active" : ""}
+                  onClick={() => setFilters((prev) => ({ ...prev, page: i }))}
+                >
+                  {i}
+                </button>,
+              );
+            }
+
+            if (end < total) {
+              if (end < total - 1) {
+                pages.push(<span key="end-dots">...</span>);
+              }
+
+              pages.push(
+                <button
+                  key={total}
+                  onClick={() =>
+                    setFilters((prev) => ({ ...prev, page: total }))
+                  }
+                >
+                  {total}
+                </button>,
+              );
+            }
+
+            return pages;
+          })()}
+
+          <button
+            disabled={!pagination.hasNext}
+            onClick={() =>
+              setFilters((prev) => ({ ...prev, page: prev.page + 1 }))
+            }
+          >
+            Next
+          </button>
+
+          <input
+            type="text"
+            placeholder="Go to"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const value = Number(e.target.value);
+                if (value >= 1 && value <= pagination.totalPages) {
+                  setFilters((prev) => ({ ...prev, page: value }));
+                  e.target.value = "";
+                }
+              }
+            }}
+            style={{ width: "60px", marginLeft: "10px" }}
+          />
         </div>
       )}
 
